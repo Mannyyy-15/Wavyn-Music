@@ -1,0 +1,44 @@
+# Gradle files
+.gradle/
+build/
+*/build/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.navigation/
+
+# Local configuration
+local.properties
+
+# Log files
+*.log
+
+# Keystore files (for security, never commit these)
+*.jks
+*.keystore
+*.p12
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Kotlin
+.kotlin/
+
+# Secrets
+secrets.xml
+google-services.json
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output
+
+# Build logs
+build_log.txt
+build_log_utf8.txt

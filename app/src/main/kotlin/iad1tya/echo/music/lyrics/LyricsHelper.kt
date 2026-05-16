@@ -1,0 +1,233 @@
+package iad1tya.echo.music.lyrics
+
+import iad1tya.echo.music.lyrics.simpmusic.SimpMusicLyricsProvider
+
+import android.content.Context
+import android.util.LruCache
+import iad1tya.echo.music.constants.PreferredLyricsProvider
+import iad1tya.echo.music.constants.PreferredLyricsProviderKey
+import iad1tya.echo.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
+import iad1tya.echo.music.extensions.toEnum
+import iad1tya.echo.music.models.MediaMetadata
+import iad1tya.echo.music.utils.dataStore
+import iad1tya.echo.music.utils.reportException
+import iad1tya.echo.music.utils.NetworkConnectivityObserver
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+class LyricsHelper
+@Inject
+constructor(
+    @ApplicationContext private val context: Context,
+    private val networkConnectivity: NetworkConnectivityObserver,
+) {
+    private var lyricsProviders =
+        listOf(
+            BetterLyricsProvider,
+            LyricsPlusProvider,
+            LrcLibLyricsProvider,
+            SimpMusicLyricsProvider,
+            KuGouLyricsProvider,
+            YouTubeSubtitleLyricsProvider,
+            YouTubeLyricsProvider
+        )
+
+    val preferred =
+        context.dataStore.data
+            .map {
+                it[PreferredLyricsProviderKey].toEnum(PreferredLyricsProvider.LRCLIB)
+            }.distinctUntilChanged()
+            .map {
+                lyricsProviders = when (it) {
+                    PreferredLyricsProvider.LRCLIB -> listOf(
+                        LrcLibLyricsProvider,
+                        SimpMusicLyricsProvider,
+                        KuGouLyricsProvider,
+                        BetterLyricsProvider,
+                        LyricsPlusProvider,
+                        YouTubeSubtitleLyricsProvider,
+                        YouTubeLyricsProvider
+                    )
+                    PreferredLyricsProvider.SIMPMUSIC -> listOf(
+                        SimpMusicLyricsProvider,
+                        LrcLibLyricsProvider,
+                        KuGouLyricsProvider,
+                        BetterLyricsProvider,
+                        LyricsPlusProvider,
+                        YouTubeSubtitleLyricsProvider,
+                        YouTubeLyricsProvider
+                    )
+                    PreferredLyricsProvider.KUGOU -> listOf(
+                        KuGouLyricsProvider,
+                        LrcLibLyricsProvider,
+                        SimpMusicLyricsProvider,
+                        BetterLyricsProvider,
+                        LyricsPlusProvider,
+                        YouTubeSubtitleLyricsProvider,
+                        YouTubeLyricsProvider
+                    )
+                    PreferredLyricsProvider.BETTERLYRICS -> listOf(
+                        BetterLyricsProvider,
+                        LrcLibLyricsProvider,
+                        SimpMusicLyricsProvider,
+                        KuGouLyricsProvider,
+                        LyricsPlusProvider,
+                        YouTubeSubtitleLyricsProvider,
+                        YouTubeLyricsProvider
+                    )
+                    PreferredLyricsProvider.LYRICSPLUS -> listOf(
+                        LyricsPlusProvider,
+                        BetterLyricsProvider,
+                        LrcLibLyricsProvider,
+                        SimpMusicLyricsProvider,
+                        KuGouLyricsProvider,
+                        YouTubeSubtitleLyricsProvider,
+                        YouTubeLyricsProvider
+                    )
+                }
+            }
+
+    private val lyricsCache = LruCache<String, LyricsFetchResult>(MAX_CACHE_SIZE)
+    private val allLyricsCache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)
+    private var currentLyricsJob: Job? = null
+
+    suspend fun getLyrics(mediaMetadata: MediaMetadata): String {
+        return getLyricsWithProvider(mediaMetadata).lyrics
+    }
+
+    suspend fun getLyricsWithProvider(mediaMetadata: MediaMetadata): LyricsFetchResult {
+        currentLyricsJob?.cancel()
+
+        val cached = lyricsCache.get(mediaMetadata.id)
+        if (cached != null) {
+            return cached
+        }
+
+        // Check network connectivity before making network requests
+        // Use synchronous check as fallback if flow doesn't emit
+        val isNetworkAvailable = try {
+            networkConnectivity.isCurrentlyConnected()
+        } catch (e: Exception) {
+            // If network check fails, try to proceed anyway
+            true
+        }
+        
+        if (!isNetworkAvailable) {
+            // Still proceed but return not found to avoid hanging
+            return LyricsFetchResult(LYRICS_NOT_FOUND, "Unknown")
+        }
+
+        val scope = CoroutineScope(SupervisorJob())
+        val deferred = scope.async {
+            for (provider in lyricsProviders) {
+                if (provider.isEnabled(context)) {
+                    try {
+                        val result = provider.getLyrics(
+                            mediaMetadata.id,
+                            mediaMetadata.title,
+                            mediaMetadata.artists.joinToString { it.name },
+                            mediaMetadata.duration,
+                        )
+                        result.onSuccess { lyrics ->
+                            val fetched = LyricsFetchResult(lyrics, provider.name)
+                            lyricsCache.put(mediaMetadata.id, fetched)
+                            return@async fetched
+                        }.onFailure {
+                            reportException(it)
+                        }
+                    } catch (e: Exception) {
+                        // Catch network-related exceptions like UnresolvedAddressException
+                        reportException(e)
+                    }
+                }
+            }
+            return@async LyricsFetchResult(LYRICS_NOT_FOUND, "Unknown")
+        }
+
+        val lyrics = deferred.await()
+        lyricsCache.put(mediaMetadata.id, lyrics)
+        scope.cancel()
+        return lyrics
+    }
+
+    suspend fun getAllLyrics(
+        mediaId: String,
+        songTitle: String,
+        songArtists: String,
+        duration: Int,
+        callback: (LyricsResult) -> Unit,
+    ) {
+        currentLyricsJob?.cancel()
+
+        val cacheKey = "$songArtists-$songTitle".replace(" ", "")
+        allLyricsCache.get(cacheKey)?.let { results ->
+            results.forEach {
+                callback(it)
+            }
+            return
+        }
+
+        // Check network connectivity before making network requests
+        // Use synchronous check as fallback if flow doesn't emit
+        val isNetworkAvailable = try {
+            networkConnectivity.isCurrentlyConnected()
+        } catch (e: Exception) {
+            // If network check fails, try to proceed anyway
+            true
+        }
+        
+        if (!isNetworkAvailable) {
+            // Still try to proceed in case of false negative
+            return
+        }
+
+        val allResult = mutableListOf<LyricsResult>()
+        currentLyricsJob = CoroutineScope(SupervisorJob()).launch {
+            lyricsProviders.forEach { provider ->
+                if (provider.isEnabled(context)) {
+                    try {
+                        provider.getAllLyrics(mediaId, songTitle, songArtists, duration) { lyrics ->
+                            val result = LyricsResult(provider.name, lyrics)
+                            allResult += result
+                            callback(result)
+                        }
+                    } catch (e: Exception) {
+                        // Catch network-related exceptions like UnresolvedAddressException
+                        reportException(e)
+                    }
+                }
+            }
+            allLyricsCache.put(cacheKey, allResult)
+        }
+
+        currentLyricsJob?.join()
+    }
+
+    fun cancelCurrentLyricsJob() {
+        currentLyricsJob?.cancel()
+        currentLyricsJob = null
+    }
+
+    companion object {
+        private const val MAX_CACHE_SIZE = 3
+    }
+}
+
+data class LyricsResult(
+    val providerName: String,
+    val lyrics: String,
+)
+
+data class LyricsFetchResult(
+    val lyrics: String,
+    val providerName: String,
+)

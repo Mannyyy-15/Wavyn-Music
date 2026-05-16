@@ -1,0 +1,7 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:drawable="@drawable/wavyn_logo_white"
+        android:width="82dp"
+        android:height="82dp"
+        android:gravity="center" />
+</layer-list>
