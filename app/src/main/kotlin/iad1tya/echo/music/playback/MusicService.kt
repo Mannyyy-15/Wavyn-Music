@@ -2461,9 +2461,8 @@ class MusicService :
                                         originReferer.referer?.let { builder.header("Referer", it) }
                                         chain.proceed(builder.build())
                                     }
-                                    .connectTimeout(5, TimeUnit.SECONDS)
-                                    .readTimeout(8, TimeUnit.SECONDS)
-                                    .callTimeout(10, TimeUnit.SECONDS)
+                                    .connectTimeout(15, TimeUnit.SECONDS)
+                                    .readTimeout(20, TimeUnit.SECONDS)
                                     .proxyAuthenticator { _, response ->
                                         YouTube.proxyAuth?.let { auth ->
                                             response.request.newBuilder()

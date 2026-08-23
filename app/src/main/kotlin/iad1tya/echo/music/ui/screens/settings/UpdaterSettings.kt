@@ -38,6 +38,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,6 +84,73 @@ fun UpdaterScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var isChecking by remember { mutableStateOf(false) }
+    var availableVersion by remember { mutableStateOf<String?>(null) }
+    var downloadUrl by remember { mutableStateOf<String?>(null) }
+    var releaseNotes by remember { mutableStateOf<List<String>>(emptyList()) }
+    var downloadProgress by remember { mutableStateOf<Float?>(null) }
+    var downloadedApkUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var isDownloading by remember { mutableStateOf(false) }
+
+    fun downloadAndInstallApk(apkUrl: String) {
+        isDownloading = true
+        downloadProgress = 0f
+        coroutineScope.launch(Dispatchers.IO) {
+            try {
+                val client = okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    .build()
+                val request = okhttp3.Request.Builder()
+                    .url(apkUrl)
+                    .header("User-Agent", "Wavyn-Music-App")
+                    .build()
+                val response = client.newCall(request).execute()
+                val body = response.body
+                if (body != null) {
+                    val contentLength = body.contentLength()
+                    val inputStream = body.byteStream()
+                    val apkFile = java.io.File(context.cacheDir, "echo_update.apk")
+                    val outputStream = java.io.FileOutputStream(apkFile)
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    var totalBytesRead = 0L
+                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                        outputStream.write(buffer, 0, bytesRead)
+                        totalBytesRead += bytesRead
+                        if (contentLength > 0) {
+                            withContext(Dispatchers.Main) {
+                                downloadProgress = totalBytesRead.toFloat() / contentLength.toFloat()
+                            }
+                        }
+                    }
+                    outputStream.flush()
+                    outputStream.close()
+                    inputStream.close()
+
+                    val apkUri = androidx.core.content.FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.FileProvider",
+                        apkFile
+                    )
+                    withContext(Dispatchers.Main) {
+                        isDownloading = false
+                        downloadedApkUri = apkUri
+                        val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(apkUri, "application/vnd.android.package-archive")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(installIntent)
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    isDownloading = false
+                    Toast.makeText(context, "Download failed: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     fun checkForUpdateManually() {
         isChecking = true
@@ -97,20 +165,11 @@ fun UpdaterScreen(
                 connection.readTimeout = 10000
                 
                 val responseCode = connection.responseCode
-                if (responseCode == 404) {
+                if (responseCode == 404 || responseCode != 200) {
                     connection.disconnect()
                     withContext(Dispatchers.Main) {
                         isChecking = false
                         Toast.makeText(context, "You're on the latest version (v${BuildConfig.VERSION_NAME})", Toast.LENGTH_SHORT).show()
-                    }
-                    return@launch
-                }
-                
-                if (responseCode != 200) {
-                    connection.disconnect()
-                    withContext(Dispatchers.Main) {
-                        isChecking = false
-                        Toast.makeText(context, "You're on the latest version", Toast.LENGTH_SHORT).show()
                     }
                     return@launch
                 }
@@ -121,14 +180,41 @@ fun UpdaterScreen(
                 val json = org.json.JSONObject(responseText)
                 val tagName = json.getString("tag_name")
                 val latestVersion = tagName.removePrefix("v")
+                val body = json.optString("body", "")
+                val assets = json.optJSONArray("assets")
+                var apkDownloadUrl: String? = null
+                if (assets != null) {
+                    for (i in 0 until assets.length()) {
+                        val asset = assets.getJSONObject(i)
+                        val name = asset.optString("name", "")
+                        if (name.endsWith(".apk", ignoreCase = true)) {
+                            apkDownloadUrl = asset.optString("browser_download_url")
+                            break
+                        }
+                    }
+                }
+                
+                val notes = body.split("\n")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() && !it.startsWith("#") }
+                    .map { line ->
+                        line.replace(Regex("^[*-]\\s+"), "")
+                            .replace(Regex("\\*\\*(.*?)\\*\\*"), "$1")
+                            .replace(Regex("\\*(.*?)\\*"), "$1")
+                            .replace(Regex("`(.*?)`"), "$1")
+                    }
+                    .filter { it.isNotEmpty() }
                 
                 withContext(Dispatchers.Main) {
                     isChecking = false
                     if (latestVersion != BuildConfig.VERSION_NAME) {
+                        availableVersion = latestVersion
+                        downloadUrl = apkDownloadUrl
+                        releaseNotes = notes
                         showUpdateNotification(context, latestVersion)
                         Toast.makeText(context, "New version $latestVersion available!", Toast.LENGTH_LONG).show()
                     } else {
-                        Toast.makeText(context, "You're on the latest version", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "You're on the latest version (v${BuildConfig.VERSION_NAME})", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
@@ -138,6 +224,10 @@ fun UpdaterScreen(
                 }
             }
         }
+    }
+
+    LaunchedEffect(Unit) {
+        checkForUpdateManually()
     }
 
     Column(
@@ -160,6 +250,113 @@ fun UpdaterScreen(
         )
 
         Spacer(Modifier.height(4.dp))
+
+        // In-App Update Card (when update is available)
+        if (availableVersion != null && availableVersion != BuildConfig.VERSION_NAME) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.update),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "New Version Available",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Version v$availableVersion (Current: v${BuildConfig.VERSION_NAME})",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    if (releaseNotes.isNotEmpty()) {
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            text = "What's New:",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        releaseNotes.take(5).forEach { note ->
+                            Text(
+                                text = "• $note",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    if (isDownloading && downloadProgress != null) {
+                        Spacer(Modifier.height(14.dp))
+                        androidx.compose.material3.LinearProgressIndicator(
+                            progress = { downloadProgress!! },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = "Downloading update: ${(downloadProgress!! * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    Button(
+                        onClick = {
+                            if (downloadedApkUri != null) {
+                                val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                                    setDataAndType(downloadedApkUri, "application/vnd.android.package-archive")
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(installIntent)
+                            } else if (!isDownloading && downloadUrl != null) {
+                                downloadAndInstallApk(downloadUrl!!)
+                            }
+                        },
+                        enabled = !isDownloading,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = when {
+                                downloadedApkUri != null -> "Install Update Now"
+                                isDownloading -> "Downloading..."
+                                else -> "Download & Install Update"
+                            },
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+        }
 
         Card(
             modifier = Modifier
@@ -187,7 +384,7 @@ fun UpdaterScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .clickable(enabled = !isChecking) { checkForUpdateManually() },
+                .clickable(enabled = !isChecking && !isDownloading) { checkForUpdateManually() },
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
             ),
