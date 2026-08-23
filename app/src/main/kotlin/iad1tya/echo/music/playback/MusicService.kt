@@ -50,6 +50,7 @@ import androidx.media3.datasource.cache.CacheDataSource.FLAG_IGNORE_CACHE_ON_ERR
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
@@ -87,9 +88,6 @@ import iad1tya.echo.music.constants.AudioQualityKey
 import iad1tya.echo.music.constants.AutoDownloadOnLikeKey
 import iad1tya.echo.music.constants.AutoLoadMoreKey
 import iad1tya.echo.music.constants.AutoSkipNextOnErrorKey
-import iad1tya.echo.music.constants.CrossfadeDurationKey
-import iad1tya.echo.music.constants.CrossfadeEnabledKey
-import iad1tya.echo.music.constants.CrossfadeGaplessKey
 import iad1tya.echo.music.constants.DiscordActivityNameKey
 import iad1tya.echo.music.constants.DiscordActivityTypeKey
 import iad1tya.echo.music.constants.DiscordAdvancedModeKey
@@ -280,7 +278,7 @@ class MusicService :
     private val playerStreamClient by enumPreference(
         this,
         PlayerStreamClientKey,
-        PlayerStreamClient.ANDROID_VR,
+        PlayerStreamClient.IOS,
     )
     private val audioEngineMode by enumPreference(
         this,
@@ -362,24 +360,11 @@ class MusicService :
     // Last.fm scrobbling
     private var scrobbleManager: ScrobbleManager? = null
 
-    // Crossfade state
-    private var crossfadeEnabled = false
-
     // Haptics polling
     private var hapticsPollingJob: Job? = null
     private var musicHapticsEnabled = false
     private var premiumVisualizerEnabled = false
-    private var crossfadeDuration = 3000L // ms
-    private var crossfadeGapless = false
-    private var crossfadeTriggerJob: Job? = null
-    private var crossfadeOutJob: Job? = null
-    private var crossfadeInJob: Job? = null
-    private var isCrossfadingIn = false
-    private var fadingPlayer: ExoPlayer? = null
-    private var lastCrossfadeTrackDuration = C.TIME_UNSET
-    private var pendingManualSkipCrossfadeIn = false
     private var proAudioRetryJob: Job? = null
-    val isCrossfading = MutableStateFlow(false)
 
     // Bluetooth resume callback
     private val audioDeviceCallback = object : AudioDeviceCallback() {
@@ -398,14 +383,13 @@ class MusicService :
         }
     }
 
+
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         intent?.action?.let { action ->
             when (action) {
                 ACTION_PLAY_PAUSE -> if (player.isPlaying) player.pause() else player.play()
                 ACTION_NEXT -> if (player.hasNextMediaItem()) {
-                    if (isWithinCrossfadeWindow()) {
-                        pendingManualSkipCrossfadeIn = true
-                    }
                     player.seekToNext()
                 }
                 ACTION_PREVIOUS -> if (player.hasPreviousMediaItem()) player.seekToPrevious()
@@ -458,11 +442,23 @@ class MusicService :
                     setSmallIcon(R.drawable.small_icon)
                 },
         )
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                30_000, // minBufferMs
+                60_000, // maxBufferMs
+                1_500,  // bufferForPlaybackMs (fast start)
+                3_000   // bufferForPlaybackAfterRebufferMs
+            )
+            .setPrioritizeTimeOverSizeThresholds(true)
+            .setBackBuffer(15_000, false)
+            .build()
+
         player =
             ExoPlayer
                 .Builder(this)
                 .setMediaSourceFactory(createMediaSourceFactory())
                 .setRenderersFactory(createRenderersFactory())
+                .setLoadControl(loadControl)
                 .setHandleAudioBecomingNoisy(true)
                 .setWakeMode(C.WAKE_MODE_NETWORK)
                 .setAudioAttributes(
@@ -520,20 +516,6 @@ class MusicService :
             true,
             volumeObserver!!
         )
-
-        // Initialize crossfade settings
-        crossfadeEnabled = dataStore.get(CrossfadeEnabledKey, false)
-        crossfadeDuration = ((dataStore.get(CrossfadeDurationKey, 3f)) * 1000).toLong()
-        crossfadeGapless = dataStore.get(CrossfadeGaplessKey, false)
-
-        // Watch crossfade preference changes
-        scope.launch {
-            dataStore.data.collect { prefs ->
-                crossfadeEnabled = prefs[CrossfadeEnabledKey] ?: false
-                crossfadeDuration = ((prefs[CrossfadeDurationKey] ?: 3f) * 1000).toLong()
-                crossfadeGapless = prefs[CrossfadeGaplessKey] ?: false
-            }
-        }
         
         // Initialize Google Cast handler
         castConnectionHandler = CastConnectionHandler(this, scope, this)
@@ -750,10 +732,9 @@ class MusicService :
         dataStore.data
             .map { (it[MusicHapticsEnabledKey] ?: false) to (it[PremiumVisualizerKey] ?: true) }
             .distinctUntilChanged()
-            .collectLatest(scope) { pair ->
-                val p = pair as Pair<*, *>
-                musicHapticsEnabled = p.first as Boolean
-                premiumVisualizerEnabled = p.second as Boolean
+            .collectLatest(scope) { (hapticsEnabled, visualizerEnabled) ->
+                musicHapticsEnabled = hapticsEnabled
+                premiumVisualizerEnabled = visualizerEnabled
                 updateMusicHapticsState()
             }
 
@@ -765,7 +746,8 @@ class MusicService :
         ) { format, normalizeAudio ->
             format to normalizeAudio
         }.collectLatest(scope) { pair -> 
-            // format and normalizeAudio are in the pair
+            // Audio effects initialization
+            openAudioEffectSession()
             setupLoudnessEnhancer()
         }
 
@@ -1309,22 +1291,36 @@ class MusicService :
         }
     }
 
-    fun getAutomix(playlistId: String) {
-        if (dataStore[SimilarContent] == true &&
+    fun getAutomix(playlistId: String? = null, videoId: String? = null) {
+        if (dataStore.get(SimilarContent, true) &&
             !(dataStore.get(DisableLoadMoreWhenRepeatAllKey, false) && player.repeatMode == REPEAT_MODE_ALL)) {
             scope.launch(SilentHandler) {
-                YouTube
-                    .next(WatchEndpoint(playlistId = playlistId))
-                    .onSuccess {
-                        YouTube
-                            .next(WatchEndpoint(playlistId = it.endpoint.playlistId))
-                            .onSuccess {
-                                automixItems.value =
-                                    it.items.map { song ->
-                                        song.toMediaItem()
-                                    }
-                            }
+                val endpoint = when {
+                    !playlistId.isNullOrEmpty() -> WatchEndpoint(playlistId = playlistId)
+                    !videoId.isNullOrEmpty() -> WatchEndpoint(videoId = videoId)
+                    else -> null
+                } ?: return@launch
+
+                YouTube.next(endpoint).onSuccess { nextResult ->
+                    val radioPlaylistId = nextResult.endpoint?.playlistId
+                    val radioEndpoint = if (!radioPlaylistId.isNullOrEmpty()) {
+                        WatchEndpoint(playlistId = radioPlaylistId)
+                    } else endpoint
+
+                    YouTube.next(radioEndpoint).onSuccess { radioResult ->
+                        val existingIds = (0 until player.mediaItemCount).map { player.getMediaItemAt(it).mediaId }.toSet()
+                        val combined = (radioResult.items + nextResult.items)
+                            .distinctBy { it.id }
+                            .filter { it.id !in existingIds }
+                            .map { it.toMediaItem() }
+                            .filterExplicit(dataStore.get(HideExplicitKey, false))
+                            .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
+
+                        if (combined.isNotEmpty()) {
+                            automixItems.value = combined
+                        }
                     }
+                }
             }
         }
     }
@@ -1828,6 +1824,7 @@ class MusicService :
         setupLoudnessEnhancer()
         setupProAudioEffects()
         updateMusicHapticsState()
+        spatialAudioManager?.resumeSensors()
         sendBroadcast(
             Intent(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
                 putExtra(AudioEffect.EXTRA_AUDIO_SESSION, player.audioSessionId)
@@ -1842,6 +1839,7 @@ class MusicService :
         isAudioEffectSessionOpened = false
         releaseLoudnessEnhancer()
         releaseProAudioEffects()
+        spatialAudioManager?.pauseSensors()
         sendBroadcast(
             Intent(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION).apply {
                 putExtra(AudioEffect.EXTRA_AUDIO_SESSION, player.audioSessionId)
@@ -1858,15 +1856,6 @@ class MusicService :
 
         setupLoudnessEnhancer()
         setupProAudioEffects()
-
-        // Schedule crossfade for next transition
-        scheduleCrossfade()
-
-        // If user skipped near track end, fade in the next track so transition isn't abrupt.
-        if (pendingManualSkipCrossfadeIn && crossfadeEnabled) {
-            pendingManualSkipCrossfadeIn = false
-            startManualSkipCrossfadeIn()
-        }
 
         // Last.fm scrobble on track change
         scrobbleManager?.onSongStop()
@@ -1923,20 +1912,46 @@ class MusicService :
             lyricsPreloadManager?.onSongChanged(player.currentMediaItemIndex, queue)
         }
 
-        // Auto load more songs
-        if (dataStore.get(AutoLoadMoreKey, true) &&
-            reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT &&
-            player.mediaItemCount - player.currentMediaItemIndex <= 5 &&
-            currentQueue.hasNextPage() &&
-            !(dataStore.get(DisableLoadMoreWhenRepeatAllKey, false) && player.repeatMode == REPEAT_MODE_ALL)
+        // Auto load more songs & continuous intelligent similar song recommendations
+        val similarContentEnabled = dataStore.get(SimilarContent, true)
+        val repeatAllDisabled = dataStore.get(DisableLoadMoreWhenRepeatAllKey, false) && player.repeatMode == REPEAT_MODE_ALL
+
+        if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT &&
+            player.mediaItemCount - player.currentMediaItemIndex <= 4 &&
+            !repeatAllDisabled
         ) {
-            scope.launch(SilentHandler) {
-                val mediaItems =
-                    currentQueue.nextPage()
-                        .filterExplicit(dataStore.get(HideExplicitKey, false))
-                        .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
-                if (player.playbackState != STATE_IDLE) {
-                    player.addMediaItems(mediaItems.drop(1))
+            if (dataStore.get(AutoLoadMoreKey, true) && currentQueue.hasNextPage()) {
+                scope.launch(SilentHandler) {
+                    val mediaItems =
+                        currentQueue.nextPage()
+                            .filterExplicit(dataStore.get(HideExplicitKey, false))
+                            .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
+                    if (player.playbackState != STATE_IDLE && mediaItems.isNotEmpty()) {
+                        player.addMediaItems(mediaItems.drop(1))
+                    }
+                }
+            } else if (similarContentEnabled) {
+                // When queue reaches end or single song is playing, auto-fetch continuous similar songs (YouTube-style Radio)
+                val currentMediaId = mediaItem?.mediaId
+                if (!currentMediaId.isNullOrEmpty()) {
+                    scope.launch(SilentHandler) {
+                        YouTube.next(WatchEndpoint(videoId = currentMediaId)).onSuccess { nextResult ->
+                            val existingIds = (0 until player.mediaItemCount).map { player.getMediaItemAt(it).mediaId }.toSet()
+                            val similarItems = nextResult.items
+                                .filter { it.id !in existingIds }
+                                .map { it.toMediaItem() }
+                                .filterExplicit(dataStore.get(HideExplicitKey, false))
+                                .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
+
+                            if (similarItems.isNotEmpty() && player.playbackState != STATE_IDLE) {
+                                player.addMediaItems(similarItems.take(10))
+                                val remaining = similarItems.drop(10)
+                                if (remaining.isNotEmpty()) {
+                                    automixItems.value = remaining
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -2078,15 +2093,6 @@ class MusicService :
         reason: Int,
     ) {
         super.onPositionDiscontinuity(oldPosition, newPosition, reason)
-
-        if (!crossfadeEnabled) return
-        if (reason != Player.DISCONTINUITY_REASON_SEEK) return
-        if (oldPosition.mediaItemIndex == newPosition.mediaItemIndex) return
-
-        val windowStart = (lastCrossfadeTrackDuration - crossfadeDuration).coerceAtLeast(0L)
-        if (lastCrossfadeTrackDuration > 0L && lastCrossfadeTrackDuration != C.TIME_UNSET && oldPosition.positionMs >= windowStart) {
-            pendingManualSkipCrossfadeIn = true
-        }
     }
 
     override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
@@ -2735,197 +2741,6 @@ class MusicService :
         }
     }
 
-    // ===== Crossfade =====
-    private fun scheduleCrossfade() {
-        crossfadeTriggerJob?.cancel()
-
-        // Handoff: main player just transitioned to the next song after the crossfade window
-        if (isCrossfadingIn) {
-            isCrossfadingIn = false
-            crossfadeOutJob?.cancel()
-            val fp = fadingPlayer
-            if (fp != null && crossfadeEnabled) {
-                // Sync main player to where fadingPlayer currently is, then release fadingPlayer
-                val syncPos = try { fp.currentPosition } catch (_: Exception) { 0L }
-                try {
-                    // Keep main player silent while seeking to the sync position to avoid hearing the start
-                    player.volume = 0f
-                    if (syncPos > 100L) {
-                        player.seekTo(syncPos)
-                    }
-                    // Delay volume restoration slightly to allow seek to process
-                    scope.launch {
-                        delay(50)
-                        if (isActive) player.volume = playerVolume.value
-                    }
-                } catch (_: Exception) {
-                    player.volume = playerVolume.value
-                }
-                scope.launch {
-                    delay(500) // allow slightly more time for handoff
-                    try { fp.stop(); fp.release() } catch (_: Exception) {}
-                }
-                fadingPlayer = null
-                isCrossfading.value = false
-            } else {
-                // fadingPlayer unavailable — fade the main player in from silence
-                val targetVolume = playerVolume.value
-                crossfadeInJob?.cancel()
-                crossfadeInJob = scope.launch {
-                    val steps = 50
-                    val stepDuration = (crossfadeDuration / steps).coerceAtLeast(10L)
-                    try { player.volume = 0f } catch (_: Exception) {}
-                    for (i in 1..steps) {
-                        if (!isActive) return@launch
-                        delay(stepDuration)
-                        val progress = i.toFloat() / steps
-                        try { player.volume = targetVolume * progress } catch (_: Exception) {}
-                    }
-                    try { player.volume = targetVolume } catch (_: Exception) {}
-                    isCrossfading.value = false
-                }
-            }
-        }
-
-        if (!crossfadeEnabled || !player.hasNextMediaItem()) return
-        if (crossfadeGapless && isNextItemGapless()) return
-
-        val duration = player.duration
-        lastCrossfadeTrackDuration = duration
-        if (duration <= 0 || duration == C.TIME_UNSET) return
-        // Skip crossfade for songs shorter than 2× the crossfade window
-        if (duration < crossfadeDuration * 2) return
-
-        val triggerAt = duration - crossfadeDuration
-
-        crossfadeTriggerJob = scope.launch {
-            while (isActive) {
-                delay(300)
-                if (player.isPlaying && player.currentPosition >= triggerAt) break
-            }
-            if (isActive) startCrossfadeOut()
-        }
-    }
-
-    private fun isWithinCrossfadeWindow(): Boolean {
-        if (!crossfadeEnabled || !player.hasNextMediaItem()) return false
-        val duration = player.duration
-        if (duration <= 0L || duration == C.TIME_UNSET) return false
-        if (duration < crossfadeDuration * 2) return false
-
-        val triggerAt = (duration - crossfadeDuration).coerceAtLeast(0L)
-        return player.currentPosition >= triggerAt
-    }
-
-    private fun startManualSkipCrossfadeIn() {
-        crossfadeInJob?.cancel()
-
-        val targetVolume = playerVolume.value
-        val steps = 40
-        val stepDuration = (crossfadeDuration / steps).coerceAtLeast(10L)
-        isCrossfading.value = true
-
-        crossfadeInJob = scope.launch {
-            try { player.volume = 0f } catch (_: Exception) {}
-
-            for (i in 1..steps) {
-                if (!isActive) return@launch
-                delay(stepDuration)
-                val progress = i.toFloat() / steps
-                try { player.volume = targetVolume * progress } catch (_: Exception) {}
-            }
-
-            try { player.volume = targetVolume } catch (_: Exception) {}
-            isCrossfading.value = false
-        }
-    }
-
-    private fun startCrossfadeOut() {
-        crossfadeOutJob?.cancel()
-        crossfadeInJob?.cancel()
-        // Release any previous fadingPlayer
-        fadingPlayer?.let { try { it.stop(); it.release() } catch (_: Exception) {} }
-        fadingPlayer = null
-
-        val targetVolume = playerVolume.value
-        val steps = 50
-        val stepDuration = (crossfadeDuration / steps).coerceAtLeast(10L)
-        isCrossfading.value = true
-
-        // ── Second player for the next song ──────────────────────────────────
-        val nextIndex = player.nextMediaItemIndex
-        if (nextIndex != C.INDEX_UNSET) {
-            try {
-                val nextItem = player.getMediaItemAt(nextIndex)
-                val fp = ExoPlayer.Builder(this)
-                    .setMediaSourceFactory(createMediaSourceFactory())
-                    .setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(C.USAGE_MEDIA)
-                            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                            .build(),
-                        false
-                    )
-                    .build()
-                fp.volume = 0f
-                fp.setMediaItem(nextItem)
-                fp.prepare()
-                fp.playWhenReady = true
-                fadingPlayer = fp
-                isCrossfadingIn = true
-
-                // Fade in the next song on fadingPlayer
-                crossfadeInJob = scope.launch {
-                    // Wait briefly for the second player to buffer
-                    var waited = 0L
-                    while (isActive && waited < 3000L) {
-                        delay(100); waited += 100
-                        if (fp.playbackState == Player.STATE_READY || fp.isPlaying) break
-                    }
-                    for (i in 1..steps) {
-                        if (!isActive) return@launch
-                        delay(stepDuration)
-                        val progress = i.toFloat() / steps
-                        try { fp.volume = targetVolume * progress } catch (_: Exception) {}
-                    }
-                    try { fp.volume = targetVolume } catch (_: Exception) {}
-                }
-            } catch (_: Exception) {
-                // Could not create second player — fall back to fade-in-after-transition
-            }
-        }
-
-        // ── Fade out the current song on main player ─────────────────────────
-        crossfadeOutJob = scope.launch {
-            for (i in 1..steps) {
-                if (!isActive) return@launch
-                delay(stepDuration)
-                if (!player.isPlaying) {
-                    // User paused — abort, restore everything
-                    isCrossfadingIn = false
-                    isCrossfading.value = false
-                    try { player.volume = targetVolume } catch (_: Exception) {}
-                    fadingPlayer?.let { try { it.stop(); it.release() } catch (_: Exception) {} }
-                    fadingPlayer = null
-                    crossfadeInJob?.cancel()
-                    return@launch
-                }
-                val progress = i.toFloat() / steps
-                try { player.volume = targetVolume * (1f - progress) } catch (_: Exception) {}
-            }
-            try { player.volume = 0f } catch (_: Exception) {}
-        }
-    }
-
-    private fun isNextItemGapless(): Boolean {
-        if (!player.hasNextMediaItem()) return false
-        val currentAlbum = player.currentMediaItem?.mediaMetadata?.albumTitle?.toString()
-        val nextIndex = player.nextMediaItemIndex
-        if (nextIndex == C.INDEX_UNSET) return false
-        val nextAlbum = player.getMediaItemAt(nextIndex).mediaMetadata.albumTitle?.toString()
-        return !currentAlbum.isNullOrEmpty() && currentAlbum == nextAlbum
-    }
-
     private fun updateDiscordRPC(song: iad1tya.echo.music.db.entities.Song, showFeedback: Boolean = false) {
         val useDetails = dataStore.get(DiscordUseDetailsKey, false)
         val advancedMode = dataStore.get(DiscordAdvancedModeKey, false)
@@ -2966,26 +2781,7 @@ class MusicService :
         }
     }
 
-    private fun cleanupCrossfade() {
-        crossfadeTriggerJob?.cancel()
-        crossfadeTriggerJob = null
-        crossfadeOutJob?.cancel()
-        crossfadeOutJob = null
-        crossfadeInJob?.cancel()
-        crossfadeInJob = null
-        isCrossfadingIn = false
-        pendingManualSkipCrossfadeIn = false
-        isCrossfading.value = false
-        // Restore player volume in case we were mid-fade
-        try { player.volume = playerVolume.value } catch (_: Exception) {}
-        fadingPlayer?.let {
-            try {
-                it.stop()
-                it.release()
-            } catch (_: Exception) {}
-        }
-        fadingPlayer = null
-    }
+
 
     override fun onDestroy() {
         if (dataStore.get(PersistentQueueKey, true)) {
@@ -3016,8 +2812,6 @@ class MusicService :
         releaseLoudnessEnhancer()
         releaseProAudioEffects()
         spatialAudioManager?.release()
-        spatialAudioManager = null
-        cleanupCrossfade()
         audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
         volumeObserver?.let { contentResolver.unregisterContentObserver(it) }
         volumeObserver = null
@@ -3027,6 +2821,10 @@ class MusicService :
         if (::castConnectionHandler.isInitialized) {
             castConnectionHandler.release()
         }
+        proAudioRetryJob?.cancel()
+        retryJob?.cancel()
+        failedSongsClearJob?.cancel()
+        
         mediaSession.release()
         player.release()
         
@@ -3074,17 +2872,20 @@ class MusicService :
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
 
-        if (dataStore.get(ForceStopOnTaskClearKey, false)) {
-            player.pause()
-            stopSelf()
-            android.os.Process.killProcess(android.os.Process.myPid())
-            return
-        }
+        val forceStop = dataStore.get(ForceStopOnTaskClearKey, false)
+        val stopMusic = dataStore.get(StopMusicOnTaskClearKey, true)
 
-        // Check if user wants to stop music when task is cleared
-        if (dataStore.get(StopMusicOnTaskClearKey, true)) {
+        if (forceStop || stopMusic) {
             player.pause()
-            stopSelf()
+            player.stop()
+            player.clearMediaItems()
+            
+            if (forceStop) {
+                stopSelf()
+                android.os.Process.killProcess(android.os.Process.myPid())
+            } else {
+                stopSelf()
+            }
         }
     }
 

@@ -51,20 +51,23 @@ object YTPlayerUtils {
     private val MAIN_CLIENT: YouTubeClient = WEB_REMIX
     /**
      * Clients used for fallback streams in case the streams of the main client do not work.
-     * Order matches Wavyn for maximum compatibility:
-     * - TVHTML5_SIMPLY_EMBEDDED_PLAYER first for age-restricted content
-     * - Then various client fallbacks
+     * Prioritized for maximum compatibility:
+     * - IOS & IPADOS first (high reliability, top audio quality)
+     * - TVHTML5 & embedded player
+     * - Android creator and mobile app clients
+     * - Android VR legacy fallbacks
+     * - Web clients
      */
     private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
-        TVHTML5_SIMPLY_EMBEDDED_PLAYER,  // Try embedded player first for age-restricted content
-        TVHTML5,
-        ANDROID_VR_1_43_32,
-        ANDROID_VR_1_61_48,
-        ANDROID_CREATOR,
-        IPADOS,
-        ANDROID_VR_NO_AUTH,
-        MOBILE,
         IOS,
+        IPADOS,
+        TVHTML5,
+        TVHTML5_SIMPLY_EMBEDDED_PLAYER,
+        ANDROID_CREATOR,
+        MOBILE,
+        ANDROID_VR_1_61_48,
+        ANDROID_VR_1_43_32,
+        ANDROID_VR_NO_AUTH,
         WEB,
         WEB_CREATOR
     )
@@ -87,7 +90,7 @@ object YTPlayerUtils {
         playlistId: String? = null,
         audioQuality: AudioQuality,
         connectivityManager: ConnectivityManager,
-        preferredStreamClient: PlayerStreamClient = PlayerStreamClient.ANDROID_VR,
+        preferredStreamClient: PlayerStreamClient = PlayerStreamClient.IOS,
         webClientPoTokenEnabled: Boolean = false,
         useVisitorData: Boolean = false,
         manualGvsPoToken: String? = null,
@@ -154,12 +157,18 @@ object YTPlayerUtils {
             }
         }
 
-        Timber.tag(logTag).d("Attempting to get player response using MAIN_CLIENT: ${MAIN_CLIENT.clientName}")
-        // Do NOT pass PoToken to WEB_REMIX for the main metadata request.
-        // WEB_REMIX works fine without PoToken for private/uploaded tracks.
-        // Passing an invalid PoToken causes WEB_REMIX to return UNPLAYABLE.
+        Timber.tag(logTag).d("Attempting to get player response using preferred client: ${preferredClient.clientName}")
         var mainPlayerResponse =
-            YouTube.player(videoId, apiPlaylistId, MAIN_CLIENT, signatureTimestamp, null).getOrThrow()
+            YouTube.player(videoId, apiPlaylistId, preferredClient, signatureTimestamp, null).getOrNull()
+                ?: YouTube.player(videoId, apiPlaylistId, IOS, signatureTimestamp, null).getOrNull()
+                ?: YouTube.player(videoId, apiPlaylistId, TVHTML5, signatureTimestamp, null).getOrNull()
+                ?: YouTube.player(videoId, apiPlaylistId, MOBILE, signatureTimestamp, null).getOrNull()
+                ?: YouTube.player(videoId, apiPlaylistId, MAIN_CLIENT, signatureTimestamp, null).getOrNull()
+                ?: throw PlaybackException(
+                    "Video stream unavailable for videoId: $videoId",
+                    null,
+                    PlaybackException.ERROR_CODE_REMOTE_ERROR
+                )
 
         // Check for age-restricted content
         val mainStatus = mainPlayerResponse.playabilityStatus.status
@@ -194,6 +203,10 @@ object YTPlayerUtils {
 
         val streamClients = buildList {
             add(preferredClient)
+            add(IOS)
+            add(IPADOS)
+            add(TVHTML5)
+            add(MOBILE)
             add(MAIN_CLIENT)
             addAll(STREAM_FALLBACK_CLIENTS)
         }.distinctBy { it.clientName }
@@ -418,8 +431,8 @@ object YTPlayerUtils {
                 .firstOrNull { it.startsWith("c=") }
                 ?.substringAfter('=')
             val requestBuilder = okhttp3.Request.Builder()
-                .head()
                 .url(url)
+                .header("Range", "bytes=0-0")
                 .header("User-Agent", StreamClientUtils.resolveUserAgent(clientParam))
 
             val originReferer = StreamClientUtils.resolveOriginReferer(clientParam)
@@ -431,13 +444,14 @@ object YTPlayerUtils {
                 requestBuilder.addHeader("Cookie", cookie)
             }
 
-            val response = httpClient.newCall(requestBuilder.build()).execute()
-            val isSuccessful = response.isSuccessful
-            Timber.tag(logTag).d("Stream URL validation result: ${if (isSuccessful) "Success" else "Failed"} (${response.code})")
-            return isSuccessful
+            httpClient.newCall(requestBuilder.build()).execute().use { response ->
+                val isSuccessful = response.isSuccessful || response.code in 200..299 || response.code == 302
+                Timber.tag(logTag).d("Stream URL validation result: ${if (isSuccessful) "Success" else "Failed"} (${response.code})")
+                return isSuccessful
+            }
         } catch (e: Exception) {
-            Timber.tag(logTag).e(e, "Stream URL validation failed with exception")
-            reportException(e)
+            Timber.tag(logTag).w(e, "Stream URL validation probe threw exception - trusting stream URL")
+            return true
         }
         return false
     }

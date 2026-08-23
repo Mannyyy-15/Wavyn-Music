@@ -26,8 +26,8 @@ android {
         applicationId = "iad1tya.echo.music"
         minSdk = 26
         targetSdk = 36
-        versionCode = 421
-        versionName = "4.2.2"
+        versionCode = 422
+        versionName = "4.2.3"
 
         val lastFmKey = localProperties.getProperty("LASTFM_API_KEY") ?: System.getenv("LASTFM_API_KEY") ?: ""
         val lastFmSecret = localProperties.getProperty("LASTFM_SECRET") ?: System.getenv("LASTFM_SECRET") ?: ""
@@ -210,7 +210,6 @@ dependencies {
     implementation(libs.compose.ui.util)
     implementation(libs.compose.ui.tooling)
     implementation(libs.compose.animation)
-    implementation(libs.compose.animation)
     implementation(libs.compose.reorderable)
     implementation("androidx.compose.material:material-icons-extended:1.7.6")
 
@@ -235,7 +234,6 @@ dependencies {
     implementation(libs.media3.okhttp)
     implementation(libs.media3.ui)
     implementation(libs.media3.cast)
-    implementation(libs.media3.transformer)
     implementation(libs.media3.transformer)
     implementation(libs.mediarouter)
     implementation(libs.cast.framework)

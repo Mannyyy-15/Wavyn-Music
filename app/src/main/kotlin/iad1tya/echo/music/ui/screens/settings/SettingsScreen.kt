@@ -180,7 +180,8 @@ fun SettingsScreen(
                                             .dns(CloudflareDnsResolver)
                                             .build()
                                         val request = okhttp3.Request.Builder()
-                                            .url("https://api.github.com/repos/iad1tya.Wavyn-Music/releases/latest")
+                                            .url("https://api.github.com/repos/Mannyyy-15/Wavyn-Music/releases/latest")
+                                            .header("User-Agent", "Wavyn-Music-App")
                                             .build()
                                         
                                         val response = client.newCall(request).execute()

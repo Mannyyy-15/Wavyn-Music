@@ -88,9 +88,9 @@ import iad1tya.echo.music.ui.player.VideoPlayerScreen
 import iad1tya.echo.music.utils.rememberEnumPreference
 import iad1tya.echo.music.utils.rememberPreference
 
-private const val TOP_LEVEL_TAB_ANIMATION_DURATION = 340
-private const val TOP_LEVEL_TAB_FADE_IN_DURATION = 260
-private const val TOP_LEVEL_TAB_FADE_OUT_DURATION = 240
+private const val TOP_LEVEL_TAB_ANIMATION_DURATION = 240
+private const val TOP_LEVEL_TAB_FADE_IN_DURATION = 180
+private const val TOP_LEVEL_TAB_FADE_OUT_DURATION = 150
 
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.topLevelTabEnterTransition() =
     when (targetState.destination.route) {

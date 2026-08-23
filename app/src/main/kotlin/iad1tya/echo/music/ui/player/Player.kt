@@ -272,7 +272,7 @@ fun BottomSheetPlayer(
     val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
     val automix by playerConnection.service.automixItems.collectAsState()
     val repeatMode by playerConnection.repeatMode.collectAsState()
-    val isCrossfading by playerConnection.service.isCrossfading.collectAsState()
+    val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
@@ -693,40 +693,7 @@ fun BottomSheetPlayer(
                 label = "playPauseRoundness",
             )
 
-            // Crossfading indicator - centered between album art and song title
-            AnimatedVisibility(
-                visible = isCrossfading,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
-                exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .padding(bottom = 8.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.shuffle),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Text(
-                            text = "Crossfading",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 0.5.sp
-                        )
-                    }
-                }
-            }
+
 
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1064,11 +1031,12 @@ fun BottomSheetPlayer(
                                 }
                             }
 
+                            val isLiked = currentSong?.song?.liked == true
                             Box(
                                 modifier = Modifier
                                     .size(42.dp)
                                     .clip(favShape)
-                                    .background(textButtonColor)
+                                    .background(if (isLiked) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f) else textButtonColor)
                                     .tvFocusableHighlight(favShape)
                                     .clickable {
                                         playerConnection.toggleLike()
@@ -1076,12 +1044,12 @@ fun BottomSheetPlayer(
                             ) {
                                 Image(
                                     painter = painterResource(
-                                        if (currentSong?.song?.liked == true)
+                                        if (isLiked)
                                             R.drawable.favorite
                                         else R.drawable.favorite_border
                                     ),
-                                    contentDescription = null,
-                                    colorFilter = ColorFilter.tint(iconButtonColor),
+                                    contentDescription = "Like",
+                                    colorFilter = ColorFilter.tint(if (isLiked) MaterialTheme.colorScheme.error else iconButtonColor),
                                     modifier = Modifier
                                         .align(Alignment.Center)
                                         .size(24.dp)
@@ -1132,44 +1100,25 @@ fun BottomSheetPlayer(
 
                         Spacer(modifier = Modifier.size(6.dp))
 
+                            val isShuffleActive = shuffleModeEnabled
                             Box(
                                 modifier = Modifier
                                     .padding(top = if (mediaMetadata.id.isNotEmpty()) 48.dp else 8.dp)
                                     .size(40.dp)
                                     .clip(RoundedCornerShape(24.dp))
-                                    .background(textButtonColor)
+                                    .background(if (isShuffleActive) MaterialTheme.colorScheme.primaryContainer else textButtonColor)
                                     .tvFocusableHighlight(RoundedCornerShape(24.dp))
                                     .clickable {
-                                        val mediaItemCount = playerConnection.player.mediaItemCount
-                                        if (mediaItemCount > 0) {
-                                            val currentIndex = playerConnection.player.currentMediaItemIndex
-                                            if (currentIndex !in 0 until mediaItemCount) return@clickable
-
-                                            val shuffledIndices = IntArray(mediaItemCount) { it }
-                                            shuffledIndices.shuffle()
-
-                                            val currentPos = shuffledIndices.indexOf(currentIndex)
-                                            if (currentPos > 0) {
-                                                shuffledIndices[currentPos] = shuffledIndices[0]
-                                                shuffledIndices[0] = currentIndex
-                                            }
-
-                                            // Shuffle queue traversal order while keeping the current song playing.
-                                            playerConnection.player.shuffleModeEnabled = true
-                                            playerConnection.player.setShuffleOrder(
-                                                DefaultShuffleOrder(shuffledIndices, System.currentTimeMillis())
-                                            )
-                                        }
+                                        playerConnection.player.shuffleModeEnabled = !shuffleModeEnabled
                                     },
                             ) {
                                 Image(
                                     painter = painterResource(R.drawable.shuffle),
-                                    contentDescription = null,
-                                    colorFilter = ColorFilter.tint(iconButtonColor),
+                                    contentDescription = "Shuffle",
+                                    colorFilter = ColorFilter.tint(if (isShuffleActive) MaterialTheme.colorScheme.primary else iconButtonColor.copy(alpha = 0.5f)),
                                     modifier = Modifier
                                         .align(Alignment.Center)
-                                        .size(24.dp)
-                                        .alpha(1f),
+                                        .size(24.dp),
                                 )
                             }
 
@@ -1434,6 +1383,7 @@ fun BottomSheetPlayer(
                         .fillMaxWidth()
                         .padding(horizontal = PlayerHorizontalPadding),
                 ) {
+                    val isRepeatActive = repeatMode != Player.REPEAT_MODE_OFF
                     Box(modifier = Modifier.weight(1f)) {
                         ResizableIconButton(
                             icon = when (repeatMode) {
@@ -1441,12 +1391,11 @@ fun BottomSheetPlayer(
                                 Player.REPEAT_MODE_ONE -> R.drawable.repeat_one
                                 else -> throw IllegalStateException()
                             },
-                            color = TextBackgroundColor,
+                            color = if (isRepeatActive) MaterialTheme.colorScheme.primary else TextBackgroundColor.copy(alpha = 0.4f),
                             modifier = Modifier
                                 .size(32.dp)
                                 .padding(4.dp)
-                                .align(Alignment.Center)
-                                .alpha(if (repeatMode == Player.REPEAT_MODE_OFF) 0.5f else 1f),
+                                .align(Alignment.Center),
                             onClick = {
                                 playerConnection.player.toggleRepeatMode()
                             },

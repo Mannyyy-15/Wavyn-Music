@@ -86,7 +86,7 @@ data class YouTubeClient(
             clientId = "7",
             userAgent = "Mozilla/5.0(SMART-TV; Linux; Tizen 4.0.0.2) AppleWebkit/605.1.15 (KHTML, like Gecko) SamsungBrowser/9.2 TV Safari/605.1.15",
             loginSupported = true,
-            loginRequired = true,
+            loginRequired = false,
             useSignatureTimestamp = true,
             useWebPoTokens = true,
         )
@@ -108,6 +108,8 @@ data class YouTubeClient(
             clientId = "5",
             userAgent = "com.google.ios.youtube/21.03.1 (iPhone16,2; U; CPU iOS 18_2 like Mac OS X;)",
             osVersion = "18.2.22C152",
+            loginSupported = true,
+            useSignatureTimestamp = true,
         )
 
         val MOBILE = YouTubeClient(
@@ -235,8 +237,8 @@ data class YouTubeClient(
             deviceMake = "Apple",
             deviceModel = "iPad7,6",
             friendlyName = "iPadOS",
-            loginSupported = false,
-            useSignatureTimestamp = false,
+            loginSupported = true,
+            useSignatureTimestamp = true,
             packageName = "com.google.ios.youtube"
         )
     }

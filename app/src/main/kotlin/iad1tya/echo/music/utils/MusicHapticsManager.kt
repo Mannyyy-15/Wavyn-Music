@@ -88,8 +88,8 @@ class MusicHapticsManager @Inject constructor(
                             samplingRate: Int
                         ) { /* unused */ }
                     },
-                    // rate in mHz; request max supported up to 60 Hz
-                    Visualizer.getMaxCaptureRate().coerceAtMost(60_000),
+                    // rate in mHz; capped at 30 Hz for optimal battery and smooth UI
+                    Visualizer.getMaxCaptureRate().coerceAtMost(30_000),
                     true,   // waveform
                     false   // fft
                 )

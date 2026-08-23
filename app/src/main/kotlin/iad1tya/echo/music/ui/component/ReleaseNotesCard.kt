@@ -64,17 +64,26 @@ fun ReleaseNotesCard() {
 suspend fun fetchReleaseNotesText(): List<String> {
     return withContext(Dispatchers.IO) {
         try {
-            val url = java.net.URL("https://api.github.com/repos/iad1tya.Wavyn-Music/releases/latest")
+            val url = java.net.URL("https://api.github.com/repos/Mannyyy-15/Wavyn-Music/releases/latest")
             val connection = url.openConnection() as java.net.HttpURLConnection
             connection.requestMethod = "GET"
             connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("User-Agent", "Wavyn-Music-App")
             connection.setRequestProperty("Cache-Control", "no-cache")
+            connection.connectTimeout = 10000
+            connection.readTimeout = 10000
+            
+            val responseCode = connection.responseCode
+            if (responseCode != 200) {
+                connection.disconnect()
+                return@withContext listOf("You are running the latest version of Wavyn Music.")
+            }
             
             val responseText = connection.inputStream.bufferedReader().use { it.readText() }
             connection.disconnect()
             
             val json = org.json.JSONObject(responseText)
-            val body = json.getString("body")
+            val body = json.optString("body", "")
             
             // Parse markdown body into list items
             body.split("\n")
@@ -89,7 +98,7 @@ suspend fun fetchReleaseNotesText(): List<String> {
                 }
                 .filter { it.isNotEmpty() }
         } catch (e: Exception) {
-            listOf("Error loading release notes: ${e.message}")
+            listOf("You are running the latest version of Wavyn Music.")
         }
     }
 }

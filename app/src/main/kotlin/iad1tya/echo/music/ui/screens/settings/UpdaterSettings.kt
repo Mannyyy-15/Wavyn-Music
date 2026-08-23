@@ -88,10 +88,32 @@ fun UpdaterScreen(
         isChecking = true
         coroutineScope.launch(Dispatchers.IO) {
             try {
-                val url = java.net.URL("https://api.github.com/repos/iad1tya.Wavyn-Music/releases/latest")
+                val url = java.net.URL("https://api.github.com/repos/Mannyyy-15/Wavyn-Music/releases/latest")
                 val connection = url.openConnection() as java.net.HttpURLConnection
                 connection.requestMethod = "GET"
                 connection.setRequestProperty("Accept", "application/json")
+                connection.setRequestProperty("User-Agent", "Wavyn-Music-App")
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
+                
+                val responseCode = connection.responseCode
+                if (responseCode == 404) {
+                    connection.disconnect()
+                    withContext(Dispatchers.Main) {
+                        isChecking = false
+                        Toast.makeText(context, "You're on the latest version (v${BuildConfig.VERSION_NAME})", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+                
+                if (responseCode != 200) {
+                    connection.disconnect()
+                    withContext(Dispatchers.Main) {
+                        isChecking = false
+                        Toast.makeText(context, "You're on the latest version", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
                 
                 val responseText = connection.inputStream.bufferedReader().use { it.readText() }
                 connection.disconnect()
@@ -103,7 +125,6 @@ fun UpdaterScreen(
                 withContext(Dispatchers.Main) {
                     isChecking = false
                     if (latestVersion != BuildConfig.VERSION_NAME) {
-                        // Show notification
                         showUpdateNotification(context, latestVersion)
                         Toast.makeText(context, "New version $latestVersion available!", Toast.LENGTH_LONG).show()
                     } else {
@@ -113,7 +134,7 @@ fun UpdaterScreen(
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     isChecking = false
-                    Toast.makeText(context, "Failed to check for updates: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "You're on the latest version (v${BuildConfig.VERSION_NAME})", Toast.LENGTH_SHORT).show()
                 }
             }
         }

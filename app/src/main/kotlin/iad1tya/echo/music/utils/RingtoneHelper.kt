@@ -79,7 +79,7 @@ object RingtoneHelper {
                 connectivityManager = connectivityManager,
                 preferredStreamClient = context.dataStore[PlayerStreamClientKey]
                     ?.let { runCatching { PlayerStreamClient.valueOf(it) }.getOrNull() }
-                    ?: PlayerStreamClient.ANDROID_VR,
+                    ?: PlayerStreamClient.IOS,
                 webClientPoTokenEnabled = context.dataStore.get(WebClientPoTokenEnabledKey, false),
                 useVisitorData = context.dataStore.get(UseVisitorDataKey, false),
                 manualGvsPoToken = context.dataStore.get(PoTokenGvsKey),

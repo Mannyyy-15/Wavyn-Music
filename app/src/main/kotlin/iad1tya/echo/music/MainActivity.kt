@@ -410,8 +410,7 @@ class MainActivity : ComponentActivity() {
 
             LaunchedEffect(playerConnection) {
                 if (playerConnection != null) {
-                    // Give it a bit of time to initialize everything
-                    delay(2000)
+                    delay(100)
                     isAppReady = true
                 }
             }
@@ -489,25 +488,32 @@ class MainActivity : ComponentActivity() {
                 if (checkForUpdates) {
                     withContext(Dispatchers.IO) {
                         runCatching {
-                            val url = java.net.URL("https://api.github.com/repos/iad1tya.Wavyn-Music/releases/latest")
+                            val url = java.net.URL("https://api.github.com/repos/Mannyyy-15/Wavyn-Music/releases/latest")
                             val connection = url.openConnection() as java.net.HttpURLConnection
                             connection.requestMethod = "GET"
                             connection.setRequestProperty("Accept", "application/json")
+                            connection.setRequestProperty("User-Agent", "Wavyn-Music-App")
+                            connection.connectTimeout = 10000
+                            connection.readTimeout = 10000
                             
-                            val responseText = connection.inputStream.bufferedReader().use { it.readText() }
-                            connection.disconnect()
-                            
-                            val json = org.json.JSONObject(responseText)
-                            val tagName = json.getString("tag_name")
-                            if (tagName.isNotEmpty()) {
-                                val version = tagName.removePrefix("v")
-                                withContext(Dispatchers.Main) {
-                                    latestVersionName = version
-                                    // Show notification if new version is available
-                                    if (version != BuildConfig.VERSION_NAME) {
-                                        showUpdateNotification(this@MainActivity, version)
+                            val responseCode = connection.responseCode
+                            if (responseCode == 200) {
+                                val responseText = connection.inputStream.bufferedReader().use { it.readText() }
+                                connection.disconnect()
+                                
+                                val json = org.json.JSONObject(responseText)
+                                val tagName = json.getString("tag_name")
+                                if (tagName.isNotEmpty()) {
+                                    val version = tagName.removePrefix("v")
+                                    withContext(Dispatchers.Main) {
+                                        latestVersionName = version
+                                        if (version != BuildConfig.VERSION_NAME) {
+                                            showUpdateNotification(this@MainActivity, version)
+                                        }
                                     }
                                 }
+                            } else {
+                                connection.disconnect()
                             }
                         }
                     }
@@ -568,7 +574,7 @@ class MainActivity : ComponentActivity() {
                 isDynamicColor = enableMaterialYou,
                 useSystemFont = useSystemFont,
             ) {
-                Crossfade(targetState = isAppReady, animationSpec = tween(1200), label = "main_fade") { ready ->
+                Crossfade(targetState = isAppReady, animationSpec = tween(250, easing = FastOutSlowInEasing), label = "main_fade") { ready ->
                     if (!ready) {
                         AppSplashScreen()
                     } else {

@@ -111,7 +111,7 @@ fun ContentSettings(
     val (hideYoutubeShorts, onHideYoutubeShortsChange) = rememberPreference(key = HideYoutubeShortsKey, defaultValue = false)
     val (playerStreamClient, onPlayerStreamClientChange) = rememberEnumPreference(
         key = PlayerStreamClientKey,
-        defaultValue = PlayerStreamClient.ANDROID_VR
+        defaultValue = PlayerStreamClient.IOS
     )
     val (webClientPoTokenEnabled) = rememberPreference(key = WebClientPoTokenEnabledKey, defaultValue = false)
     val (proxyEnabled, onProxyEnabledChange) = rememberPreference(key = ProxyEnabledKey, defaultValue = false)
@@ -458,19 +458,19 @@ fun ContentSettings(
             icon = { Icon(painterResource(R.drawable.play), null) },
             selectedValue = playerStreamClient,
             values = listOf(
-                PlayerStreamClient.ANDROID_VR,
-                PlayerStreamClient.WEB_REMIX,
                 PlayerStreamClient.IOS,
                 PlayerStreamClient.TVHTML5,
+                PlayerStreamClient.WEB_REMIX,
                 PlayerStreamClient.ANDROID,
+                PlayerStreamClient.ANDROID_VR,
             ),
             valueText = {
                 when (it) {
-                    PlayerStreamClient.ANDROID_VR -> "Android VR"
-                    PlayerStreamClient.WEB_REMIX -> "Web Remix"
-                    PlayerStreamClient.IOS -> "iOS"
+                    PlayerStreamClient.IOS -> "iOS (Recommended)"
                     PlayerStreamClient.TVHTML5 -> "TVHTML5"
+                    PlayerStreamClient.WEB_REMIX -> "Web Remix"
                     PlayerStreamClient.ANDROID -> "Android"
+                    PlayerStreamClient.ANDROID_VR -> "Android VR (Legacy)"
                 }
             },
             onValueSelected = onPlayerStreamClientChange,

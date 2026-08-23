@@ -209,13 +209,17 @@ private fun NewMiniPlayer(
             try {
                 val request = ImageRequest.Builder(context)
                     .data(url)
+                    .size(100, 100)
                     .allowHardware(false)
                     .build()
                 val result = context.imageLoader.execute(request)
                 result.image?.let { image ->
                     val palette = withContext(Dispatchers.Default) {
                         val bitmap = image.toBitmap()
-                        Palette.from(bitmap).maximumColorCount(32).generate()
+                        Palette.from(bitmap)
+                            .maximumColorCount(8)
+                            .resizeBitmapArea(100 * 100)
+                            .generate()
                     }
                     gradientColors = PlayerColorExtractor.extractGradientColors(
                         palette = palette,
@@ -643,13 +647,17 @@ private fun LegacyMiniPlayer(
             try {
                 val request = ImageRequest.Builder(context)
                     .data(url)
+                    .size(100, 100)
                     .allowHardware(false)
                     .build()
                 val result = context.imageLoader.execute(request)
                 result.image?.let { image ->
                     val palette = withContext(Dispatchers.Default) {
                         val bitmap = image.toBitmap()
-                        Palette.from(bitmap).maximumColorCount(32).generate()
+                        Palette.from(bitmap)
+                            .maximumColorCount(8)
+                            .resizeBitmapArea(100 * 100)
+                            .generate()
                     }
                     gradientColors = PlayerColorExtractor.extractGradientColors(
                         palette = palette,

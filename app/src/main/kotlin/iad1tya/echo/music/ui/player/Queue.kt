@@ -329,11 +329,13 @@ fun Queue(
                         )
                     }
 
+                    val isShuffleActive = playerConnection.player.shuffleModeEnabled
                     Box(
                         modifier = Modifier
                             .size(buttonSize)
                             .clip(RoundedCornerShape(5.dp))
-                            .border(1.dp, borderColor, RoundedCornerShape(5.dp))
+                            .background(if (isShuffleActive) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                            .border(1.dp, if (isShuffleActive) MaterialTheme.colorScheme.primary else borderColor, RoundedCornerShape(5.dp))
                             .clickable {
                                 playerConnection.player.shuffleModeEnabled = !playerConnection.player.shuffleModeEnabled
                             },
@@ -341,14 +343,13 @@ fun Queue(
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.shuffle),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(iconSize)
-                                .alpha(if (playerConnection.player.shuffleModeEnabled) 1f else 0.5f),
-                            tint = TextBackgroundColor
+                            contentDescription = "Shuffle",
+                            modifier = Modifier.size(iconSize),
+                            tint = if (isShuffleActive) MaterialTheme.colorScheme.primary else TextBackgroundColor.copy(alpha = 0.5f)
                         )
                     }
 
+                    val isRepeatActive = repeatMode != Player.REPEAT_MODE_OFF
                     Box(
                         modifier = Modifier
                             .size(buttonSize)
@@ -360,9 +361,10 @@ fun Queue(
                                     bottomEnd = 50.dp
                                 )
                             )
+                            .background(if (isRepeatActive) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
                             .border(
                                 1.dp,
-                                borderColor,
+                                if (isRepeatActive) MaterialTheme.colorScheme.primary else borderColor,
                                 RoundedCornerShape(
                                     topStart = 5.dp,
                                     bottomStart = 5.dp,
@@ -378,16 +380,13 @@ fun Queue(
                         Icon(
                             painter = painterResource(
                                 id = when (repeatMode) {
-                                    Player.REPEAT_MODE_OFF, Player.REPEAT_MODE_ALL -> R.drawable.repeat
                                     Player.REPEAT_MODE_ONE -> R.drawable.repeat_one
                                     else -> R.drawable.repeat
                                 }
                             ),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(iconSize)
-                                .alpha(if (repeatMode == Player.REPEAT_MODE_OFF) 0.5f else 1f),
-                            tint = TextBackgroundColor
+                            contentDescription = "Repeat",
+                            modifier = Modifier.size(iconSize),
+                            tint = if (isRepeatActive) MaterialTheme.colorScheme.primary else TextBackgroundColor.copy(alpha = 0.5f)
                         )
                     }
 
@@ -1164,7 +1163,7 @@ fun Queue(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(controlTileColor)
+                        .background(if (shuffleModeEnabled) MaterialTheme.colorScheme.primaryContainer else controlTileColor)
                         .clickable {
                             coroutineScope
                                 .launch {
@@ -1184,8 +1183,8 @@ fun Queue(
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.shuffle),
-                        contentDescription = null,
-                        modifier = Modifier.alpha(if (shuffleModeEnabled) 1f else 0.5f),
+                        contentDescription = "Shuffle",
+                        tint = if (shuffleModeEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                     )
                 }
 

@@ -30,8 +30,9 @@ class ShazamRepository @Inject constructor() {
     }
 
     suspend fun identify(duration: Int, data: ByteArray): Track? {
-        val timestamp = Calendar.getInstance().time.time.toInt()
-        val name = Random(timestamp).nextInt(1 shl 48).toString()
+        val timestamp = System.currentTimeMillis()
+        val randomSeed = (timestamp and 0x7FFFFFFF).toInt()
+        val name = java.util.UUID.randomUUID().toString()
         val signature = try {
             val sig = ShazamSignature().safeCreate(data.toShortArray())
             android.util.Log.d("EchoMusic", "Signature generated successfully: ${sig.take(20)}...")
@@ -44,9 +45,9 @@ class ShazamRepository @Inject constructor() {
 
         val body = ShazamRequestBody(
             Geolocation(
-                Random(timestamp).nextDouble() * 400 + 100,
-                Random(timestamp).nextDouble() * 180 - 90,
-                Random(timestamp).nextDouble() * 360 - 180
+                Random(randomSeed).nextDouble() * 400 + 100,
+                Random(randomSeed).nextDouble() * 180 - 90,
+                Random(randomSeed).nextDouble() * 360 - 180
             ),
             Signature(
                 duration * 1000,

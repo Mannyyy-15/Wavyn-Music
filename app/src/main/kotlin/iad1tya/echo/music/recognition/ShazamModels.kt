@@ -8,7 +8,7 @@ data class ShazamRequestBody(
     @SerializedName("signature")
     val signature: Signature,
     @SerializedName("timestamp")
-    val timestamp: Int,
+    val timestamp: Long,
     @SerializedName("timezone")
     val timezone: String
 )
@@ -26,7 +26,7 @@ data class Signature(
     @SerializedName("samplems")
     val samplems: Int,
     @SerializedName("timestamp")
-    val timestamp: Int,
+    val timestamp: Long,
     @SerializedName("uri")
     val uri: String
 )

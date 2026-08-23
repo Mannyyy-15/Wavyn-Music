@@ -260,8 +260,8 @@ fun AboutScreen(
             SocialLinkItem(
                 icon = rememberVectorPainter(Icons.Rounded.Code), // use Code for github for now if github is corrupted
                 title = "GitHub",
-                subtitle = "iad1tya.Wavyn-Music",
-                onClick = { uriHandler.openUri("https://github.com/iad1tya.Wavyn-Music") }
+                subtitle = "Mannyyy-15/Wavyn-Music",
+                onClick = { uriHandler.openUri("https://github.com/Mannyyy-15/Wavyn-Music") }
             )
         }
 

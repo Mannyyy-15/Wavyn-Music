@@ -156,7 +156,7 @@ fun ImportantNoticeDialog(
                         )
                         NoticeLinkButton(
                             text = "Star this project on GitHub",
-                            url = "https://github.com/iad1tya.Wavyn-Music",
+                            url = "https://github.com/Mannyyy-15/Wavyn-Music",
                             context = context,
                         )
                         NoticeLinkButton(

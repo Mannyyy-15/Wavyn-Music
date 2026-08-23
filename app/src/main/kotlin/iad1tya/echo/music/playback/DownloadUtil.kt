@@ -60,7 +60,7 @@ constructor(
     private val appContext = context
     private val connectivityManager = context.getSystemService<ConnectivityManager>()!!
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
-    private val playerStreamClient by enumPreference(context, PlayerStreamClientKey, PlayerStreamClient.ANDROID_VR)
+    private val playerStreamClient by enumPreference(context, PlayerStreamClientKey, PlayerStreamClient.IOS)
     private val songUrlCache = HashMap<String, Pair<String, Long>>()
     private val downloadRetryCount = mutableMapOf<String, Int>()
 
