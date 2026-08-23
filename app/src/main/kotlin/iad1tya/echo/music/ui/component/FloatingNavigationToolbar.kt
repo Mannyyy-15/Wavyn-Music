@@ -10,6 +10,7 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -41,6 +42,7 @@ import iad1tya.echo.music.constants.FloatingCompactMaxWidth
 import iad1tya.echo.music.constants.FloatingCompactWidthFraction
 import iad1tya.echo.music.ui.screens.Screens
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun FloatingNavigationToolbar(
     items: List<Screens>,
@@ -49,6 +51,7 @@ fun FloatingNavigationToolbar(
     modifier: Modifier = Modifier,
     isSelected: (Screens) -> Boolean,
     onItemClick: (Screens, Boolean) -> Unit,
+    onItemLongClick: ((Screens) -> Unit)? = null,
 ) {
     Surface(
         modifier = modifier
@@ -88,12 +91,14 @@ fun FloatingNavigationToolbar(
                     slim = slim,
                     pureBlack = pureBlack,
                     onClick = { onItemClick(screen, selected) },
+                    onLongClick = onItemLongClick?.let { { it(screen) } },
                 )
             }
         }
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun FloatingNavigationToolbarItem(
     screen: Screens,
@@ -101,6 +106,7 @@ private fun FloatingNavigationToolbarItem(
     slim: Boolean,
     pureBlack: Boolean,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val shape = RoundedCornerShape(24.dp)
     val containerColor by animateColorAsState(
@@ -154,11 +160,12 @@ private fun FloatingNavigationToolbarItem(
                         },
                     shape = shape,
                 )
-                .clickable(
+                .combinedClickable(
                     interactionSource = interactionSource,
                     indication = LocalIndication.current,
                     role = Role.Tab,
                     onClick = onClick,
+                    onLongClick = onLongClick,
                 )
                 .widthIn(min = 48.dp)
                 .padding(

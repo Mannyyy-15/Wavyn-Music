@@ -1,5 +1,7 @@
 package iad1tya.echo.music.ui.component
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -13,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import iad1tya.echo.music.ui.screens.Screens
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun AppNavigationBar(
     navigationItems: List<Screens>,
@@ -21,6 +24,7 @@ fun AppNavigationBar(
     modifier: Modifier = Modifier,
     isSelected: (Screens) -> Boolean,
     onItemClick: (Screens, Boolean) -> Unit,
+    onItemLongClick: ((Screens) -> Unit)? = null,
 ) {
     NavigationBar(
         modifier = modifier,
@@ -36,6 +40,10 @@ fun AppNavigationBar(
                     Icon(
                         painter = painterResource(id = if (selected) screen.iconIdActive else screen.iconIdInactive),
                         contentDescription = stringResource(screen.titleId),
+                        modifier = Modifier.combinedClickable(
+                            onClick = { onItemClick(screen, selected) },
+                            onLongClick = onItemLongClick?.let { { it(screen) } }
+                        )
                     )
                 },
                 label = if (!slimNav) {

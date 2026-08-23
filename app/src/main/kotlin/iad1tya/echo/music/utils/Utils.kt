@@ -7,6 +7,7 @@ import java.util.Locale
 
 fun reportException(throwable: Throwable) {
     Timber.e(throwable)
+    ErrorLogger.logError("ReportException", throwable.localizedMessage ?: "Unhandled exception", throwable)
 }
 
 @Suppress("DEPRECATION")

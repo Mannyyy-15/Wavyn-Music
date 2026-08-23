@@ -338,6 +338,15 @@ object YTPlayerUtils {
 
         if (streamPlayerResponse == null) {
             Timber.tag(logTag).e("Bad stream player response - all clients failed")
+            ErrorLogger.logError(
+                tag = "StreamExtraction",
+                message = "All fallback clients failed to resolve audio stream for videoId: $videoId",
+                metadata = mapOf(
+                    "videoId" to videoId,
+                    "playlistId" to (playlistId ?: "null"),
+                    "preferredClient" to preferredStreamClient.name
+                )
+            )
             throw Exception("Bad stream player response")
         }
 

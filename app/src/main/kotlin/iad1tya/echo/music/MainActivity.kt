@@ -601,6 +601,7 @@ class MainActivity : ComponentActivity() {
                     val accountImageUrl by homeViewModel.accountImageUrl.collectAsState()
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val (previousTab, setPreviousTab) = rememberSaveable { mutableStateOf("home") }
+                    var showErrorLogDialog by rememberSaveable { mutableStateOf(false) }
 
                     val (showFindInNavbar) = rememberPreference(iad1tya.echo.music.constants.ShowFindInNavbarKey, defaultValue = true)
                     val navigationItems = remember(showFindInNavbar) {
@@ -1518,6 +1519,11 @@ class MainActivity : ComponentActivity() {
                                                             .height(bottomInset + navVisibleHeight),
                                                         isSelected = isNavItemSelected,
                                                         onItemClick = onNavItemClick,
+                                                        onItemLongClick = { screen ->
+                                                            if (screen == Screens.Home) {
+                                                                showErrorLogDialog = true
+                                                            }
+                                                        },
                                                     )
                                                 } else {
                                                     FloatingNavigationToolbar(
@@ -1534,6 +1540,11 @@ class MainActivity : ComponentActivity() {
                                                             .height(navVisibleHeight),
                                                         isSelected = isNavItemSelected,
                                                         onItemClick = onNavItemClick,
+                                                        onItemLongClick = { screen ->
+                                                            if (screen == Screens.Home) {
+                                                                showErrorLogDialog = true
+                                                            }
+                                                        },
                                                     )
                                                 }
                                             }
@@ -1855,6 +1866,12 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             }
+                        )
+                    }
+
+                    if (showErrorLogDialog) {
+                        iad1tya.echo.music.ui.component.ErrorLogDialog(
+                            onDismiss = { showErrorLogDialog = false }
                         )
                     }
 

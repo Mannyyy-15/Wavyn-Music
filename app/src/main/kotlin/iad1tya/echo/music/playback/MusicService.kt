@@ -2154,6 +2154,23 @@ class MusicService :
         super.onPlayerError(error)
         Log.e("MusicService", "Playback error: ${error.message}", error)
 
+        val currentId = player.currentMediaItem?.mediaId
+        val currentTitle = player.currentMetadata?.title ?: "Unknown Song"
+        val currentArtist = player.currentMetadata?.artists?.firstOrNull()?.name ?: "Unknown Artist"
+        iad1tya.echo.music.utils.ErrorLogger.logError(
+            tag = "ExoPlayer",
+            message = "Playback error on '$currentTitle' ($currentId): ${error.message} [Code: ${error.errorCodeName} / ${error.errorCode}]",
+            throwable = error,
+            metadata = mapOf(
+                "mediaId" to (currentId ?: "none"),
+                "title" to currentTitle,
+                "artist" to currentArtist,
+                "errorCodeName" to error.errorCodeName,
+                "errorCode" to error.errorCode.toString(),
+                "position" to "${player.currentPosition}ms / ${player.duration}ms"
+            )
+        )
+
         try {
             val mediaId = player.currentMediaItem?.mediaId
 
