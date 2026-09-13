@@ -211,7 +211,6 @@ import iad1tya.echo.music.ui.component.rememberBottomSheetState
 import iad1tya.echo.music.ui.component.shimmer.ShimmerTheme
 import iad1tya.echo.music.ui.menu.YouTubeSongMenu
 import iad1tya.echo.music.ui.player.BottomSheetPlayer
-import iad1tya.echo.music.ui.component.AppSplashScreen
 import iad1tya.echo.music.ui.screens.Screens
 import iad1tya.echo.music.ui.screens.navigationBuilder
 import iad1tya.echo.music.ui.screens.search.LocalSearchScreen
@@ -412,14 +411,6 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val playerConnection = playerConnectionSnapshot
-            var isAppReady by remember { mutableStateOf(false) }
-
-            LaunchedEffect(playerConnection) {
-                if (playerConnection != null) {
-                    delay(500)
-                    isAppReady = true
-                }
-            }
 
             val checkForUpdates by rememberPreference(CheckForUpdatesKey, defaultValue = true)
             
@@ -597,18 +588,14 @@ class MainActivity : ComponentActivity() {
                 isDynamicColor = enableMaterialYou,
                 useSystemFont = useSystemFont,
             ) {
-                Crossfade(targetState = isAppReady, animationSpec = tween(350, easing = FastOutSlowInEasing), label = "main_fade") { ready ->
-                    if (!ready) {
-                        AppSplashScreen()
-                    } else {
-                        BoxWithConstraints(
-                            modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .background(
-                                    MaterialTheme.colorScheme.surface
-                                )
-                        ) {
+                BoxWithConstraints(
+                    modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            MaterialTheme.colorScheme.surface
+                        )
+                ) {
                     val context = androidx.compose.ui.platform.LocalContext.current
                     val focusManager = LocalFocusManager.current
                     val density = LocalDensity.current
@@ -1911,12 +1898,11 @@ class MainActivity : ComponentActivity() {
                             openSearchImmediately = false
                         }
                     }
-                    }
                 }
             }
         }
     }
-}
+
 
     private fun handleDeepLinkIntent(intent: Intent, navController: NavHostController) {
         if (intent.action == ACTION_FIND) {
