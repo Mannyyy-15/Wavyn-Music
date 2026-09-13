@@ -1,7 +1,9 @@
 package iad1tya.echo.music.ui.screens.spotify
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.graphics.Bitmap
+import android.net.Uri
 import android.net.http.SslError
 import android.webkit.*
 import android.widget.Toast
@@ -11,8 +13,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Key
-import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,15 +27,19 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
 import iad1tya.echo.music.LocalPlayerAwareWindowInsets
 import iad1tya.echo.music.R
 import iad1tya.echo.music.spotify.SpotifyAuthManager
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
-private const val SPOTIFY_ACCOUNTS_URL = "https://accounts.spotify.com/en/login?continue=https%3A%2F%2Fopen.spotify.com%2F"
-private const val SPOTIFY_WEB_PLAYER_URL = "https://open.spotify.com/"
+private const val SPOTIFY_LOGIN_URL = "https://accounts.spotify.com/en/login"
+private const val USER_AGENT_DESKTOP =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("SetJavaScriptEnabled")
@@ -45,7 +51,6 @@ fun SpotifyLoginScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var webViewInstance by remember { mutableStateOf<WebView?>(null) }
-    var currentTargetUrl by remember { mutableStateOf(SPOTIFY_ACCOUNTS_URL) }
     var isLoading by remember { mutableStateOf(true) }
     var loadProgress by remember { mutableFloatStateOf(0.1f) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -53,8 +58,50 @@ fun SpotifyLoginScreen(
     var showManualDialog by remember { mutableStateOf(false) }
     var manualSpDc by remember { mutableStateOf("") }
 
+    val tokenFetchStarted = remember { AtomicBoolean(false) }
+
     BackHandler(enabled = webViewInstance?.canGoBack() == true) {
         webViewInstance?.goBack()
+    }
+
+    // Enable WebView debugging for remote diagnostics
+    LaunchedEffect(Unit) {
+        try {
+            WebView.setWebContentsDebuggingEnabled(true)
+        } catch (_: Exception) {}
+    }
+
+    // Continuous cookie poller across Spotify domains
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1000)
+            if (tokenFetchStarted.get()) continue
+            val spDc = extractCookie("sp_dc")
+            if (!spDc.isNullOrBlank() && tokenFetchStarted.compareAndSet(false, true)) {
+                isAuthenticating = true
+                coroutineScope.launch {
+                    val result = SpotifyAuthManager.saveSession(spDc)
+                    result.onSuccess { user ->
+                        Toast.makeText(
+                            context,
+                            "Connected as ${user.displayName}!",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        navController.navigate("spotify_hub") {
+                            popUpTo("spotify_login") { inclusive = true }
+                        }
+                    }.onFailure { err ->
+                        isAuthenticating = false
+                        tokenFetchStarted.set(false)
+                        Toast.makeText(
+                            context,
+                            "Failed to connect: ${err.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+        }
     }
 
     Scaffold(
@@ -86,31 +133,31 @@ fun SpotifyLoginScreen(
                     }
                 },
                 actions = {
-                    // Switch between Accounts page and Web Player
+                    // Open in External Browser (Chrome / Firefox / Brave)
                     IconButton(
                         onClick = {
-                            val nextUrl = if (currentTargetUrl == SPOTIFY_ACCOUNTS_URL) {
-                                SPOTIFY_WEB_PLAYER_URL
-                            } else {
-                                SPOTIFY_ACCOUNTS_URL
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(SPOTIFY_LOGIN_URL))
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Could not open browser: ${e.message}", Toast.LENGTH_SHORT).show()
                             }
-                            currentTargetUrl = nextUrl
-                            webViewInstance?.loadUrl(nextUrl)
-                            Toast.makeText(
-                                context,
-                                if (nextUrl == SPOTIFY_WEB_PLAYER_URL) "Switched to Web Player" else "Switched to Login Form",
-                                Toast.LENGTH_SHORT
-                            ).show()
                         }
                     ) {
                         Icon(
-                            painter = rememberVectorPainter(Icons.Rounded.Language),
-                            contentDescription = "Toggle Login Mode"
+                            painter = rememberVectorPainter(Icons.AutoMirrored.Rounded.OpenInNew),
+                            contentDescription = "Open in external browser"
                         )
                     }
 
                     // Refresh Button
-                    IconButton(onClick = { webViewInstance?.reload() }) {
+                    IconButton(
+                        onClick = {
+                            errorMessage = null
+                            isLoading = true
+                            webViewInstance?.reload()
+                        }
+                    ) {
                         Icon(
                             painter = rememberVectorPainter(Icons.Rounded.Refresh),
                             contentDescription = "Reload"
@@ -141,33 +188,30 @@ fun SpotifyLoginScreen(
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
-                    WebView(ctx).apply {
-                        setBackgroundColor(android.graphics.Color.parseColor("#121212"))
+                    val cookieManager = CookieManager.getInstance()
+                    cookieManager.setAcceptCookie(true)
 
-                        // Enable 1st and 3rd-party cookies (essential for Spotify Next.js login)
-                        val cookieManager = CookieManager.getInstance()
-                        cookieManager.setAcceptCookie(true)
+                    WebView(ctx).apply {
+                        layoutParams = android.view.ViewGroup.LayoutParams(
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        )
+                        webViewInstance = this
                         cookieManager.setAcceptThirdPartyCookies(this, true)
+                        setBackgroundColor(android.graphics.Color.parseColor("#121212"))
 
                         settings.apply {
                             javaScriptEnabled = true
                             domStorageEnabled = true
                             databaseEnabled = true
-                            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                            setSupportZoom(true)
-                            builtInZoomControls = true
-                            displayZoomControls = false
-                            useWideViewPort = true
                             loadWithOverviewMode = true
+                            useWideViewPort = true
+                            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                             javaScriptCanOpenWindowsAutomatically = true
+                            @Suppress("DEPRECATION")
                             setSupportMultipleWindows(false)
                             cacheMode = WebSettings.LOAD_DEFAULT
-
-                            // Clean User Agent: remove 'Version/4.0' and '; wv' so Spotify recognizes this as genuine Chrome
-                            val defaultUa = userAgentString
-                            userAgentString = defaultUa
-                                .replace("; wv", "")
-                                .replace("Version/4.0 ", "")
+                            userAgentString = USER_AGENT_DESKTOP
                         }
 
                         webChromeClient = object : WebChromeClient() {
@@ -185,18 +229,11 @@ fun SpotifyLoginScreen(
                                 super.onPageStarted(view, url, favicon)
                                 isLoading = true
                                 errorMessage = null
-                                checkCookies(url)
                             }
 
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 super.onPageFinished(view, url)
                                 isLoading = false
-                                checkCookies(url)
-                            }
-
-                            override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
-                                super.doUpdateVisitedHistory(view, url, isReload)
-                                checkCookies(url)
                             }
 
                             override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
@@ -211,45 +248,17 @@ fun SpotifyLoginScreen(
                                 }
                             }
 
-                            private fun checkCookies(url: String?) {
-                                if (isAuthenticating) return
-                                val targetUrl = url ?: "https://open.spotify.com"
-                                val cookies = CookieManager.getInstance().getCookie(targetUrl) ?: ""
-                                val spotifyCookies = CookieManager.getInstance().getCookie("https://open.spotify.com") ?: ""
-                                val accountsCookies = CookieManager.getInstance().getCookie("https://accounts.spotify.com") ?: ""
-                                val fullCookies = "$cookies; $spotifyCookies; $accountsCookies"
+                            @Suppress("OVERRIDE_DEPRECATION")
+                            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                                return false
+                            }
 
-                                if ("sp_dc=" in fullCookies) {
-                                    val spDc = extractCookieValue(fullCookies, "sp_dc")
-                                    if (!spDc.isNullOrBlank()) {
-                                        isAuthenticating = true
-                                        coroutineScope.launch {
-                                            val result = SpotifyAuthManager.saveSession(spDc)
-                                            result.onSuccess { user ->
-                                                Toast.makeText(
-                                                    context,
-                                                    "Connected as ${user.displayName}!",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                                navController.navigate("spotify_hub") {
-                                                    popUpTo("spotify_login") { inclusive = true }
-                                                }
-                                            }.onFailure { err ->
-                                                isAuthenticating = false
-                                                Toast.makeText(
-                                                    context,
-                                                    "Failed to connect: ${err.message}",
-                                                    Toast.LENGTH_LONG
-                                                ).show()
-                                            }
-                                        }
-                                    }
-                                }
+                            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                return false
                             }
                         }
 
-                        loadUrl(currentTargetUrl)
-                        webViewInstance = this
+                        loadUrl(SPOTIFY_LOGIN_URL)
                     }
                 }
             )
@@ -300,7 +309,7 @@ fun SpotifyLoginScreen(
                                 onClick = {
                                     errorMessage = null
                                     isLoading = true
-                                    webViewInstance?.loadUrl(SPOTIFY_ACCOUNTS_URL)
+                                    webViewInstance?.loadUrl(SPOTIFY_LOGIN_URL)
                                 },
                                 shape = RoundedCornerShape(10.dp)
                             ) {
@@ -308,14 +317,14 @@ fun SpotifyLoginScreen(
                             }
                             OutlinedButton(
                                 onClick = {
-                                    errorMessage = null
-                                    isLoading = true
-                                    currentTargetUrl = SPOTIFY_WEB_PLAYER_URL
-                                    webViewInstance?.loadUrl(SPOTIFY_WEB_PLAYER_URL)
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(SPOTIFY_LOGIN_URL))
+                                        context.startActivity(intent)
+                                    } catch (_: Exception) {}
                                 },
                                 shape = RoundedCornerShape(10.dp)
                             ) {
-                                Text("Web Player")
+                                Text("Open in Browser")
                             }
                         }
                     }
@@ -352,17 +361,38 @@ fun SpotifyLoginScreen(
     if (showManualDialog) {
         AlertDialog(
             onDismissRequest = { showManualDialog = false },
-            title = { Text("Manual sp_dc Cookie") },
+            title = {
+                Text(
+                    "Manual Spotify Login",
+                    fontWeight = FontWeight.Bold
+                )
+            },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "If you already have your Spotify 'sp_dc' cookie from your browser, paste it below:",
-                        style = MaterialTheme.typography.bodyMedium
+                        text = "You can log in to Spotify on your browser and paste your 'sp_dc' cookie below, or use it directly.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
+                    OutlinedButton(
+                        onClick = {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(SPOTIFY_LOGIN_URL))
+                                context.startActivity(intent)
+                            } catch (_: Exception) {}
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Open Spotify in Web Browser")
+                    }
+
                     OutlinedTextField(
                         value = manualSpDc,
                         onValueChange = { manualSpDc = it },
-                        label = { Text("sp_dc Cookie") },
+                        label = { Text("sp_dc Cookie Value") },
+                        placeholder = { Text("AQB...") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = false,
                         maxLines = 4
@@ -370,12 +400,13 @@ fun SpotifyLoginScreen(
                 }
             },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         val cookie = manualSpDc.trim()
                         if (cookie.isNotBlank()) {
                             showManualDialog = false
                             isAuthenticating = true
+                            tokenFetchStarted.set(true)
                             coroutineScope.launch {
                                 val result = SpotifyAuthManager.saveSession(cookie)
                                 result.onSuccess { user ->
@@ -389,6 +420,7 @@ fun SpotifyLoginScreen(
                                     }
                                 }.onFailure { err ->
                                     isAuthenticating = false
+                                    tokenFetchStarted.set(false)
                                     Toast.makeText(
                                         context,
                                         "Failed: ${err.message}",
@@ -397,7 +429,8 @@ fun SpotifyLoginScreen(
                                 }
                             }
                         }
-                    }
+                    },
+                    enabled = manualSpDc.isNotBlank()
                 ) {
                     Text("Connect")
                 }
@@ -411,12 +444,27 @@ fun SpotifyLoginScreen(
     }
 }
 
-private fun extractCookieValue(cookieHeader: String, cookieName: String): String? {
-    val prefix = "$cookieName="
-    for (part in cookieHeader.split(";")) {
-        val trimmed = part.trim()
-        if (trimmed.startsWith(prefix)) {
-            return trimmed.substring(prefix.length)
+/**
+ * Searches the cookie jar across all Spotify domains for a cookie by [name].
+ */
+private fun extractCookie(name: String): String? {
+    val cookieManager = CookieManager.getInstance()
+    val domains = listOf(
+        "https://open.spotify.com",
+        "https://accounts.spotify.com",
+        "https://spotify.com",
+    )
+    for (domain in domains) {
+        val allCookies = cookieManager.getCookie(domain) ?: continue
+        val match = allCookies.split(";")
+            .mapNotNull {
+                val parts = it.trim().split("=", limit = 2)
+                if (parts.size == 2) parts[0].trim() to parts[1].trim() else null
+            }
+            .firstOrNull { it.first == name && it.second.isNotBlank() }
+            ?.second
+        if (!match.isNullOrBlank()) {
+            return match
         }
     }
     return null
