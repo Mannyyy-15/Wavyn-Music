@@ -48,6 +48,12 @@ object SpotifyAuthManager {
     private val _currentUser = MutableStateFlow<SpotifyUser?>(null)
     val currentUser: StateFlow<SpotifyUser?> = _currentUser.asStateFlow()
 
+    private val _userPlaylists = MutableStateFlow<List<SpotifyPlaylist>>(emptyList())
+    val userPlaylists: StateFlow<List<SpotifyPlaylist>> = _userPlaylists.asStateFlow()
+
+    private val _likedTracksCount = MutableStateFlow<Int>(0)
+    val likedTracksCount: StateFlow<Int> = _likedTracksCount.asStateFlow()
+
     init {
         scope.launch {
             loadSavedSession()
@@ -75,16 +81,13 @@ object SpotifyAuthManager {
                         product = userProduct
                     )
                 }
-                // Refresh profile in background
-                val token = getValidAccessToken()
-                if (token != null) {
-                    SpotifyApiService.getMe(token)?.let { freshUser ->
-                        updateSavedUser(freshUser)
-                    }
-                }
+                // Sync library & refresh profile in background
+                syncLibrary()
             } else {
                 _isLoggedIn.value = false
                 _currentUser.value = null
+                _userPlaylists.value = emptyList()
+                _likedTracksCount.value = 0
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading Spotify session: ${e.message}", e)
@@ -127,10 +130,46 @@ object SpotifyAuthManager {
 
             _isLoggedIn.value = true
             _currentUser.value = user
+            
+            // Sync user library in background
+            scope.launch {
+                syncLibrary()
+            }
+
             Result.success(user)
         } catch (e: Exception) {
             Log.e(TAG, "saveSession error: ${e.message}", e)
             Result.failure(e)
+        }
+    }
+
+    /**
+     * Synchronizes user's Spotify playlists, liked tracks count, and profile info.
+     */
+    suspend fun syncLibrary(): Unit = withContext(Dispatchers.IO) {
+        try {
+            val token = getValidAccessToken() ?: return@withContext
+            Log.i(TAG, "Starting Spotify library sync...")
+
+            // 1. Refresh profile
+            SpotifyApiService.getMe(token)?.let { freshUser ->
+                updateSavedUser(freshUser)
+            }
+
+            // 2. Fetch playlists (including collaborative, user-created, followed)
+            val playlists = SpotifyApiService.getUserPlaylists(token, limit = 50)
+            if (playlists.isNotEmpty()) {
+                _userPlaylists.value = playlists
+                Log.i(TAG, "Spotify library synced: ${playlists.size} playlists")
+            }
+
+            // 3. Fetch liked tracks to compute count
+            val liked = SpotifyApiService.getUserSavedTracks(token, limit = 50)
+            if (liked.isNotEmpty()) {
+                _likedTracksCount.value = liked.size
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "syncLibrary failed: ${e.message}")
         }
     }
 
@@ -345,6 +384,8 @@ object SpotifyAuthManager {
             }
             _isLoggedIn.value = false
             _currentUser.value = null
+            _userPlaylists.value = emptyList()
+            _likedTracksCount.value = 0
         } catch (e: Exception) {
             Log.e(TAG, "logout error: ${e.message}", e)
         }

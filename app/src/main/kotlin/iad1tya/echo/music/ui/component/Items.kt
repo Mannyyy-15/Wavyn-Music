@@ -749,6 +749,259 @@ fun PlaylistGridItem(
 )
 
 @Composable
+fun SpotifyPlaylistItem(
+    playlist: iad1tya.echo.music.spotify.SpotifyPlaylist,
+    modifier: Modifier = Modifier,
+    trailingContent: @Composable RowScope.() -> Unit = {}
+) = ListItem(
+    title = playlist.name,
+    subtitle = if (playlist.isCollaborative) {
+        "Collab • ${playlist.ownerName ?: "Spotify"}"
+    } else if (playlist.trackCount > 0) {
+        "${playlist.trackCount} songs"
+    } else {
+        playlist.ownerName ?: "Spotify Playlist"
+    },
+    badges = {
+        if (playlist.isCollaborative) {
+            androidx.compose.material3.Surface(
+                shape = RoundedCornerShape(4.dp),
+                color = androidx.compose.ui.graphics.Color(0xFF1DB954).copy(alpha = 0.2f),
+                modifier = Modifier.padding(end = 4.dp)
+            ) {
+                Text(
+                    text = "COLLAB",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = androidx.compose.ui.graphics.Color(0xFF1DB954),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 9.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                )
+            }
+        }
+    },
+    thumbnailContent = {
+        Box(
+            modifier = Modifier
+                .size(ListThumbnailSize)
+                .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            if (!playlist.imageUrl.isNullOrBlank()) {
+                coil3.compose.AsyncImage(
+                    model = playlist.imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.ic_spotify),
+                    contentDescription = null,
+                    tint = androidx.compose.ui.graphics.Color(0xFF1DB954),
+                    modifier = Modifier.size(ListThumbnailSize / 2)
+                )
+            }
+        }
+    },
+    trailingContent = trailingContent,
+    modifier = modifier
+)
+
+@Composable
+fun SpotifyPlaylistGridItem(
+    playlist: iad1tya.echo.music.spotify.SpotifyPlaylist,
+    modifier: Modifier = Modifier,
+    fillMaxWidth: Boolean = false,
+) = GridItem(
+    title = {
+        Text(
+            text = playlist.name,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.basicMarquee().fillMaxWidth()
+        )
+    },
+    subtitle = {
+        Text(
+            text = if (playlist.isCollaborative) {
+                "Collab • ${playlist.ownerName ?: "Spotify"}"
+            } else if (playlist.trackCount > 0) {
+                "${playlist.trackCount} songs"
+            } else {
+                playlist.ownerName ?: "Spotify Playlist"
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.secondary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+    },
+    badges = {
+        if (playlist.isCollaborative) {
+            androidx.compose.material3.Surface(
+                shape = RoundedCornerShape(4.dp),
+                color = androidx.compose.ui.graphics.Color(0xFF1DB954).copy(alpha = 0.2f),
+                modifier = Modifier.padding(end = 4.dp)
+            ) {
+                Text(
+                    text = "COLLAB",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = androidx.compose.ui.graphics.Color(0xFF1DB954),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 9.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                )
+            }
+        }
+    },
+    thumbnailContent = {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            if (!playlist.imageUrl.isNullOrBlank()) {
+                coil3.compose.AsyncImage(
+                    model = playlist.imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.ic_spotify),
+                    contentDescription = null,
+                    tint = androidx.compose.ui.graphics.Color(0xFF1DB954),
+                    modifier = Modifier.size(48.dp)
+                )
+            }
+        }
+    },
+    fillMaxWidth = fillMaxWidth,
+    modifier = modifier
+)
+
+@Composable
+fun SpotifyLikedPlaylistItem(
+    songCount: Int,
+    modifier: Modifier = Modifier,
+    trailingContent: @Composable RowScope.() -> Unit = {}
+) = ListItem(
+    title = "Liked Songs (Spotify)",
+    subtitle = if (songCount > 0) "$songCount songs • Spotify" else "Spotify Auto Playlist",
+    badges = {
+        androidx.compose.material3.Surface(
+            shape = RoundedCornerShape(4.dp),
+            color = Color(0xFF1DB954).copy(alpha = 0.2f),
+            modifier = Modifier.padding(end = 4.dp)
+        ) {
+            Text(
+                text = "SPOTIFY",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF1DB954),
+                fontWeight = FontWeight.Bold,
+                fontSize = 9.sp,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+            )
+        }
+    },
+    thumbnailContent = {
+        Box(
+            modifier = Modifier
+                .size(ListThumbnailSize)
+                .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                .background(
+                    androidx.compose.ui.graphics.Brush.linearGradient(
+                        listOf(Color(0xFF450AF5), Color(0xFF8E8EE5))
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.favorite),
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(ListThumbnailSize / 2)
+            )
+        }
+    },
+    trailingContent = trailingContent,
+    modifier = modifier
+)
+
+@Composable
+fun SpotifyLikedPlaylistGridItem(
+    songCount: Int,
+    modifier: Modifier = Modifier,
+    fillMaxWidth: Boolean = false,
+) = GridItem(
+    title = {
+        Text(
+            text = "Liked Songs",
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.basicMarquee().fillMaxWidth()
+        )
+    },
+    subtitle = {
+        Text(
+            text = if (songCount > 0) "$songCount songs • Spotify" else "Spotify Auto Playlist",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.secondary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+    },
+    badges = {
+        androidx.compose.material3.Surface(
+            shape = RoundedCornerShape(4.dp),
+            color = Color(0xFF1DB954).copy(alpha = 0.2f),
+            modifier = Modifier.padding(end = 4.dp)
+        ) {
+            Text(
+                text = "SPOTIFY",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF1DB954),
+                fontWeight = FontWeight.Bold,
+                fontSize = 9.sp,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+            )
+        }
+    },
+    thumbnailContent = {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                .background(
+                    androidx.compose.ui.graphics.Brush.linearGradient(
+                        listOf(Color(0xFF450AF5), Color(0xFF8E8EE5))
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.favorite),
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(48.dp)
+            )
+        }
+    },
+    fillMaxWidth = fillMaxWidth,
+    modifier = modifier
+)
+
+
+@Composable
 fun MediaMetadataListItem(
     mediaMetadata: MediaMetadata,
     modifier: Modifier = Modifier,

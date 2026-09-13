@@ -21,6 +21,7 @@ data class SpotifyPlaylist(
     val imageUrl: String? = null,
     val trackCount: Int = 0,
     val ownerName: String? = null,
+    val isCollaborative: Boolean = false,
 ) : Serializable
 
 @Immutable

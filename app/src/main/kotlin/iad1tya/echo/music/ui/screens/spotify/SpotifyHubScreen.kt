@@ -50,14 +50,32 @@ fun SpotifyHubScreen(
 
     val isLoggedIn by SpotifyAuthManager.isLoggedIn.collectAsState()
     val currentUser by SpotifyAuthManager.currentUser.collectAsState()
+    val syncedPlaylists by SpotifyAuthManager.userPlaylists.collectAsState()
+    val likedTracksCount by SpotifyAuthManager.likedTracksCount.collectAsState()
 
-    var playlists by remember { mutableStateOf<List<SpotifyPlaylist>>(emptyList()) }
+    var localPlaylists by remember { mutableStateOf<List<SpotifyPlaylist>>(emptyList()) }
+    val playlists = if (syncedPlaylists.isNotEmpty()) syncedPlaylists else localPlaylists
+
     var topArtists by remember { mutableStateOf<List<SpotifyArtist>>(emptyList()) }
     var topTracks by remember { mutableStateOf<List<SpotifyTrack>>(emptyList()) }
     var genreSeeds by remember { mutableStateOf<List<String>>(SpotifyApiService.defaultGenreSeeds) }
     var selectedGenre by remember { mutableStateOf<String?>(null) }
     var genreRadioLoading by remember { mutableStateOf(false) }
     var isLoadingData by remember { mutableStateOf(true) }
+    var isSyncing by remember { mutableStateOf(false) }
+
+    suspend fun loadHubData() {
+        val token = SpotifyAuthManager.getValidAccessToken()
+        if (token != null) {
+            SpotifyAuthManager.syncLibrary()
+            if (syncedPlaylists.isEmpty()) {
+                localPlaylists = SpotifyApiService.getUserPlaylists(token, limit = 50)
+            }
+            topArtists = SpotifyApiService.getTopArtists(token, limit = 15)
+            topTracks = SpotifyApiService.getTopTracks(token, limit = 15)
+            genreSeeds = SpotifyApiService.getAvailableGenreSeeds(token)
+        }
+    }
 
     LaunchedEffect(isLoggedIn) {
         if (!isLoggedIn) {
@@ -68,13 +86,7 @@ fun SpotifyHubScreen(
         }
 
         isLoadingData = true
-        val token = SpotifyAuthManager.getValidAccessToken()
-        if (token != null) {
-            playlists = SpotifyApiService.getUserPlaylists(token, limit = 50)
-            topArtists = SpotifyApiService.getTopArtists(token, limit = 15)
-            topTracks = SpotifyApiService.getTopTracks(token, limit = 15)
-            genreSeeds = SpotifyApiService.getAvailableGenreSeeds(token)
-        }
+        loadHubData()
         isLoadingData = false
     }
 
@@ -115,8 +127,12 @@ fun SpotifyHubScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                ),
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -146,6 +162,30 @@ fun SpotifyHubScreen(
                     IconButton(
                         onClick = {
                             scope.launch {
+                                isSyncing = true
+                                Toast.makeText(context, "Syncing Spotify library...", Toast.LENGTH_SHORT).show()
+                                loadHubData()
+                                isSyncing = false
+                                Toast.makeText(context, "Spotify library synced!", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    ) {
+                        if (isSyncing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = Color(0xFF1DB954)
+                            )
+                        } else {
+                            Icon(
+                                painter = rememberVectorPainter(Icons.Rounded.Refresh),
+                                contentDescription = "Sync Library"
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = {
+                            scope.launch {
                                 SpotifyAuthManager.logout()
                                 Toast.makeText(context, "Disconnected from Spotify", Toast.LENGTH_SHORT).show()
                                 navController.navigateUp()
@@ -157,8 +197,7 @@ fun SpotifyHubScreen(
                             contentDescription = "Logout"
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                }
             )
         },
         modifier = Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
@@ -188,7 +227,7 @@ fun SpotifyHubScreen(
                             .padding(horizontal = 16.dp),
                         shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.70f)
                         )
                     ) {
                         Box(
@@ -293,7 +332,7 @@ fun SpotifyHubScreen(
                                     },
                                 shape = RoundedCornerShape(16.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.70f)
                                 )
                             ) {
                                 Row(
@@ -333,7 +372,7 @@ fun SpotifyHubScreen(
                                             fontWeight = FontWeight.Bold
                                         )
                                         Text(
-                                            text = "Play library",
+                                            text = if (likedTracksCount > 0) "$likedTracksCount songs" else "Play library",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -367,7 +406,7 @@ fun SpotifyHubScreen(
                                     },
                                 shape = RoundedCornerShape(16.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.70f)
                                 )
                             ) {
                                 Row(
@@ -554,11 +593,33 @@ fun SpotifyHubScreen(
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
-                                        Text(
-                                            text = "${playlist.trackCount} songs",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            if (playlist.isCollaborative) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = Color(0xFF1DB954).copy(alpha = 0.2f)
+                                                ) {
+                                                    Text(
+                                                        text = "COLLAB",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = Color(0xFF1DB954),
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 9.sp,
+                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                    )
+                                                }
+                                            }
+                                            Text(
+                                                text = if (playlist.trackCount > 0) "${playlist.trackCount} songs" else if (!playlist.ownerName.isNullOrBlank()) "By ${playlist.ownerName}" else "Spotify",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
                                     }
                                 }
                             }

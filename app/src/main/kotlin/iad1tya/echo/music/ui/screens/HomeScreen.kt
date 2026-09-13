@@ -2,12 +2,17 @@ package iad1tya.echo.music.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -58,6 +63,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -174,6 +180,10 @@ fun HomeScreen(
         "SAPISID" in parseCookieString(innerTubeCookie)
     }
     val url = if (isLoggedIn) accountImageUrl else null
+
+    val isSpotifyLoggedIn by iad1tya.echo.music.spotify.SpotifyAuthManager.isLoggedIn.collectAsState()
+    val spotifyPlaylists by iad1tya.echo.music.spotify.SpotifyAuthManager.userPlaylists.collectAsState()
+    val spotifyLikedCount by iad1tya.echo.music.spotify.SpotifyAuthManager.likedTracksCount.collectAsState()
 
     val scope = rememberCoroutineScope()
     val lazylistState = rememberLazyListState()
@@ -415,6 +425,183 @@ fun HomeScreen(
             }
 
             if (selectedChip == null) {
+                if (isSpotifyLoggedIn && spotifyPlaylists.isNotEmpty()) {
+                    item(key = "spotify_section_title") {
+                        NavigationTitle(
+                            title = "From Your Spotify",
+                            action = {
+                                androidx.compose.material3.TextButton(
+                                    onClick = { navController.navigate("spotify_hub") },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                    modifier = Modifier.height(32.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_spotify),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = Color(0xFF1DB954)
+                                        )
+                                        Text(
+                                            text = "Spotify Hub",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = Color(0xFF1DB954),
+                                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            },
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+
+                    item(key = "spotify_playlists_row") {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        ) {
+                            // Liked Songs Card
+                            item(key = "spotify_liked_card") {
+                                androidx.compose.material3.Card(
+                                    modifier = Modifier
+                                        .width(135.dp)
+                                        .clickable { navController.navigate("spotify_playlist/liked_songs") },
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = androidx.compose.material3.CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.70f)
+                                    )
+                                ) {
+                                    Column(modifier = Modifier.padding(10.dp)) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(115.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(
+                                                    androidx.compose.ui.graphics.Brush.linearGradient(
+                                                        listOf(Color(0xFF450AF5), Color(0xFF8E8EE5))
+                                                    )
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.favorite),
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(36.dp)
+                                            )
+                                        }
+                                        Spacer(Modifier.height(8.dp))
+                                        Text(
+                                            text = "Liked Songs",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = if (spotifyLikedCount > 0) "$spotifyLikedCount songs" else "Spotify Library",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Spotify User Playlists (including collaborative)
+                            items(spotifyPlaylists, key = { "spotify_${it.id}" }) { sp ->
+                                Column(
+                                    modifier = Modifier
+                                        .width(135.dp)
+                                        .clickable { navController.navigate("spotify_playlist/${sp.id}") }
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(135.dp)
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (!sp.imageUrl.isNullOrBlank()) {
+                                            AsyncImage(
+                                                model = sp.imageUrl,
+                                                contentDescription = null,
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        } else {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_spotify),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(48.dp),
+                                                tint = Color(0xFF1DB954)
+                                            )
+                                        }
+                                        // Tiny Spotify indicator in bottom right
+                                        androidx.compose.material3.Surface(
+                                            shape = CircleShape,
+                                            color = Color.Black.copy(alpha = 0.7f),
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(6.dp)
+                                                .size(20.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.ic_spotify),
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(14.dp),
+                                                    tint = Color(0xFF1DB954)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(
+                                        text = sp.name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        if (sp.isCollaborative) {
+                                            androidx.compose.material3.Surface(
+                                                shape = RoundedCornerShape(4.dp),
+                                                color = Color(0xFF1DB954).copy(alpha = 0.2f)
+                                            ) {
+                                                Text(
+                                                    text = "COLLAB",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = Color(0xFF1DB954),
+                                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                                    fontSize = 8.sp,
+                                                    modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp)
+                                                )
+                                            }
+                                        }
+                                        Text(
+                                            text = if (sp.trackCount > 0) "${sp.trackCount} songs" else if (!sp.ownerName.isNullOrBlank()) "By ${sp.ownerName}" else "Spotify",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 quickPicks?.takeIf { it.isNotEmpty() }?.let { quickPicks ->
                     item(key = "quick_picks_title") {
                         NavigationTitle(

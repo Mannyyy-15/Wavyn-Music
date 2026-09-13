@@ -57,6 +57,12 @@ fun SpotifyPlaylistViewScreen(
 
     LaunchedEffect(playlistId) {
         isLoading = true
+        val known = SpotifyAuthManager.userPlaylists.value.find { it.id == playlistId }
+        if (known != null) {
+            playlistTitle = known.name
+            playlistOwner = if (known.isCollaborative) "Collaborative • ${known.ownerName ?: "Friend"}" else (known.ownerName ?: "Spotify Playlist")
+            playlistCover = known.imageUrl
+        }
         val token = SpotifyAuthManager.getValidAccessToken()
         if (token != null) {
             val fetchedTracks = if (playlistId == "liked_songs") {
@@ -67,6 +73,9 @@ fun SpotifyPlaylistViewScreen(
                 SpotifyApiService.getPlaylistTracks(token, playlistId, limit = 100)
             }
             tracks = fetchedTracks
+            if (playlistCover.isNullOrBlank() && fetchedTracks.isNotEmpty()) {
+                playlistCover = fetchedTracks.firstOrNull()?.albumArtUrl
+            }
         }
         isLoading = false
     }
@@ -97,6 +106,7 @@ fun SpotifyPlaylistViewScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {

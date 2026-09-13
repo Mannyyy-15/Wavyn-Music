@@ -74,6 +74,10 @@ import iad1tya.echo.music.ui.component.LibraryPlaylistListItem
 import iad1tya.echo.music.ui.component.LocalMenuState
 import iad1tya.echo.music.ui.component.PlaylistGridItem
 import iad1tya.echo.music.ui.component.PlaylistListItem
+import iad1tya.echo.music.ui.component.SpotifyLikedPlaylistItem
+import iad1tya.echo.music.ui.component.SpotifyLikedPlaylistGridItem
+import iad1tya.echo.music.ui.component.SpotifyPlaylistItem
+import iad1tya.echo.music.ui.component.SpotifyPlaylistGridItem
 import iad1tya.echo.music.ui.component.SortHeader
 import iad1tya.echo.music.utils.rememberEnumPreference
 import iad1tya.echo.music.utils.rememberPreference
@@ -95,6 +99,10 @@ fun LibraryPlaylistsScreen(
     val haptic = LocalHapticFeedback.current
 
     val coroutineScope = rememberCoroutineScope()
+
+    val isSpotifyLoggedIn by iad1tya.echo.music.spotify.SpotifyAuthManager.isLoggedIn.collectAsState()
+    val spotifyPlaylists by iad1tya.echo.music.spotify.SpotifyAuthManager.userPlaylists.collectAsState()
+    val spotifyLikedCount by iad1tya.echo.music.spotify.SpotifyAuthManager.likedTracksCount.collectAsState()
 
     var viewType by rememberEnumPreference(PlaylistViewTypeKey, LibraryViewType.GRID)
     val (sortType, onSortTypeChange) = rememberEnumPreference(
@@ -242,11 +250,12 @@ fun LibraryPlaylistsScreen(
 
             Spacer(Modifier.weight(1f))
 
+            val totalPlaylistCount = playlists.size + if (isSpotifyLoggedIn) spotifyPlaylists.size else 0
             Text(
                 text = pluralStringResource(
                     R.plurals.n_playlist,
-                    playlists.size,
-                    playlists.size
+                    totalPlaylistCount,
+                    totalPlaylistCount
                 ),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.secondary,
@@ -308,6 +317,24 @@ fun LibraryPlaylistsScreen(
                                     .fillMaxWidth()
                                     .clickable {
                                         navController.navigate("auto_playlist/liked")
+                                    }
+                                    .animateItem(),
+                            )
+                        }
+                    }
+
+                    if (isSpotifyLoggedIn) {
+                        item(
+                            key = "spotifyLikedPlaylist",
+                            contentType = { CONTENT_TYPE_PLAYLIST },
+                        ) {
+                            SpotifyLikedPlaylistItem(
+                                songCount = spotifyLikedCount,
+                                modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        navController.navigate("spotify_playlist/liked_songs")
                                     }
                                     .animateItem(),
                             )
@@ -409,8 +436,26 @@ fun LibraryPlaylistsScreen(
                         }
                     }
 
+                    if (isSpotifyLoggedIn && spotifyPlaylists.isNotEmpty()) {
+                        items(
+                            items = spotifyPlaylists,
+                            key = { "spotify_${it.id}" },
+                            contentType = { CONTENT_TYPE_PLAYLIST },
+                        ) { sp ->
+                            SpotifyPlaylistItem(
+                                playlist = sp,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        navController.navigate("spotify_playlist/${sp.id}")
+                                    }
+                                    .animateItem()
+                            )
+                        }
+                    }
+
                     playlists.let { playlists ->
-                        if (playlists.isEmpty()) {
+                        if (playlists.isEmpty() && (!isSpotifyLoggedIn || spotifyPlaylists.isEmpty())) {
                             item(key = "empty_placeholder") {
                             }
                         }
@@ -481,6 +526,27 @@ fun LibraryPlaylistsScreen(
                                     .combinedClickable(
                                         onClick = {
                                             navController.navigate("auto_playlist/liked")
+                                        },
+                                    )
+                                    .animateItem(),
+                            )
+                        }
+                    }
+
+                    if (isSpotifyLoggedIn) {
+                        item(
+                            key = "spotifyLikedPlaylist",
+                            contentType = { CONTENT_TYPE_PLAYLIST },
+                        ) {
+                            SpotifyLikedPlaylistGridItem(
+                                songCount = spotifyLikedCount,
+                                fillMaxWidth = true,
+                                modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .combinedClickable(
+                                        onClick = {
+                                            navController.navigate("spotify_playlist/liked_songs")
                                         },
                                     )
                                     .animateItem(),
@@ -594,8 +660,30 @@ fun LibraryPlaylistsScreen(
                         }
                     }
 
+                    if (isSpotifyLoggedIn && spotifyPlaylists.isNotEmpty()) {
+                        items(
+                            items = spotifyPlaylists,
+                            key = { "spotify_${it.id}" },
+                            contentType = { CONTENT_TYPE_PLAYLIST },
+                        ) { sp ->
+                            SpotifyPlaylistGridItem(
+                                playlist = sp,
+                                fillMaxWidth = true,
+                                modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .combinedClickable(
+                                        onClick = {
+                                            navController.navigate("spotify_playlist/${sp.id}")
+                                        },
+                                    )
+                                    .animateItem()
+                            )
+                        }
+                    }
+
                     playlists.let { playlists ->
-                        if (playlists.isEmpty()) {
+                        if (playlists.isEmpty() && (!isSpotifyLoggedIn || spotifyPlaylists.isEmpty())) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
                             }
                         }

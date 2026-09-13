@@ -3,6 +3,10 @@ package iad1tya.echo.music.ui.theme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.palette.graphics.Palette
+import coil3.imageLoader
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
+import coil3.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -13,6 +17,25 @@ import kotlinx.coroutines.withContext
  * to create visually appealing gradients for the music player interface.
  */
 object PlayerColorExtractor {
+
+    suspend fun extractFromUrl(context: android.content.Context, url: String, fallbackColor: Int = 0): List<Color> = withContext(Dispatchers.IO) {
+        try {
+            val request = ImageRequest.Builder(context)
+                .data(url)
+                .allowHardware(false)
+                .build()
+            val result = context.imageLoader.execute(request)
+            val image = result.image ?: return@withContext emptyList()
+            val bitmap = image.toBitmap()
+            val palette = Palette.from(bitmap)
+                .maximumColorCount(8)
+                .resizeBitmapArea(100 * 100)
+                .generate()
+            extractRichGradientColors(palette, fallbackColor)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 
     /**
      * Extracts colors from a palette and creates a gradient

@@ -357,18 +357,23 @@ private fun NewMiniPlayer(
                 .height(64.dp) // Circular height
                 .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
                 .clip(RoundedCornerShape(28.dp)) // Match floating toolbar roundness
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(28.dp)
+                )
                 .then(
                     if (pureBlack || pureBlackMiniPlayer) {
-                        Modifier.background(Color.Black)
+                        Modifier.background(Color.Black.copy(alpha = 0.82f))
                     } else if (gradientColors.isNotEmpty()) {
                         Modifier.background(
                             Brush.horizontalGradient(
-                                colors = gradientColors
+                                colors = gradientColors.map { it.copy(alpha = 0.82f) }
                             )
                         )
                     } else {
                         Modifier.background(
-                            color = MaterialTheme.colorScheme.surfaceContainer
+                            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.82f)
                         )
                     }
                 )
