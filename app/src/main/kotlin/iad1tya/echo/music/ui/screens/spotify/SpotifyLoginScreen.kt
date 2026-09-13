@@ -27,12 +27,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
 import iad1tya.echo.music.LocalPlayerAwareWindowInsets
 import iad1tya.echo.music.R
 import iad1tya.echo.music.spotify.SpotifyAuthManager
+import iad1tya.echo.music.spotify.SpotifyUser
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
@@ -77,25 +77,41 @@ fun SpotifyLoginScreen(
             delay(1000)
             if (tokenFetchStarted.get()) continue
             val spDc = extractCookie("sp_dc")
+            val spKey = extractCookie("sp_key") ?: ""
             if (!spDc.isNullOrBlank() && tokenFetchStarted.compareAndSet(false, true)) {
                 isAuthenticating = true
+                webViewInstance?.stopLoading()
+                webViewInstance?.loadUrl("about:blank")
                 coroutineScope.launch {
-                    val result = SpotifyAuthManager.saveSession(spDc)
-                    result.onSuccess { user ->
+                    var lastError: Throwable? = null
+                    var successUser: SpotifyUser? = null
+                    for (attempt in 1..3) {
+                        val result = SpotifyAuthManager.saveSession(spDc, spKey)
+                        if (result.isSuccess) {
+                            successUser = result.getOrNull()
+                            break
+                        } else {
+                            lastError = result.exceptionOrNull()
+                            if (attempt < 3) delay(1000)
+                        }
+                    }
+
+                    if (successUser != null) {
                         Toast.makeText(
                             context,
-                            "Connected as ${user.displayName}!",
+                            "Connected as ${successUser.displayName}!",
                             Toast.LENGTH_SHORT
                         ).show()
                         navController.navigate("spotify_hub") {
                             popUpTo("spotify_login") { inclusive = true }
                         }
-                    }.onFailure { err ->
+                    } else {
                         isAuthenticating = false
-                        tokenFetchStarted.set(false)
+                        val errorDesc = lastError?.message ?: "Could not authenticate"
+                        errorMessage = "Login failed: $errorDesc. Tap Retry to try again."
                         Toast.makeText(
                             context,
-                            "Failed to connect: ${err.message}",
+                            "Failed to connect: $errorDesc",
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -154,8 +170,9 @@ fun SpotifyLoginScreen(
                     IconButton(
                         onClick = {
                             errorMessage = null
+                            tokenFetchStarted.set(false)
                             isLoading = true
-                            webViewInstance?.reload()
+                            webViewInstance?.loadUrl(SPOTIFY_LOGIN_URL)
                         }
                     ) {
                         Icon(
@@ -308,6 +325,7 @@ fun SpotifyLoginScreen(
                             Button(
                                 onClick = {
                                     errorMessage = null
+                                    tokenFetchStarted.set(false)
                                     isLoading = true
                                     webViewInstance?.loadUrl(SPOTIFY_LOGIN_URL)
                                 },
@@ -408,7 +426,7 @@ fun SpotifyLoginScreen(
                             isAuthenticating = true
                             tokenFetchStarted.set(true)
                             coroutineScope.launch {
-                                val result = SpotifyAuthManager.saveSession(cookie)
+                                val result = SpotifyAuthManager.saveSession(cookie, "")
                                 result.onSuccess { user ->
                                     Toast.makeText(
                                         context,
@@ -420,7 +438,7 @@ fun SpotifyLoginScreen(
                                     }
                                 }.onFailure { err ->
                                     isAuthenticating = false
-                                    tokenFetchStarted.set(false)
+                                    errorMessage = "Manual connect failed: ${err.message}"
                                     Toast.makeText(
                                         context,
                                         "Failed: ${err.message}",

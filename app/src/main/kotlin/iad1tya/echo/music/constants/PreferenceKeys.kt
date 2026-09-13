@@ -745,6 +745,7 @@ val CountryCodeToName =
     )
 
 val SpotifySpDcKey = stringPreferencesKey("spotify_sp_dc")
+val SpotifySpKeyKey = stringPreferencesKey("spotify_sp_key")
 val SpotifyAccessTokenKey = stringPreferencesKey("spotify_access_token")
 val SpotifyTokenExpirationKey = longPreferencesKey("spotify_token_expiration")
 val SpotifyUserIdKey = stringPreferencesKey("spotify_user_id")
