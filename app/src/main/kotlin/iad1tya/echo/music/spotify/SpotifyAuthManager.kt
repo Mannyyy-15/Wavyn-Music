@@ -102,8 +102,13 @@ object SpotifyAuthManager {
             }
 
             val (accessToken, expirationTimestamp) = tokenResult
-            val user = SpotifyApiService.getMe(accessToken)
-                ?: return@withContext Result.failure(Exception("Failed to fetch Spotify user profile"))
+            val user = SpotifyApiService.getMe(accessToken) ?: SpotifyUser(
+                id = "spotify_user",
+                displayName = "Spotify User",
+                email = null,
+                avatarUrl = null,
+                product = "free"
+            )
 
             // Save to DataStore
             context.dataStore.edit { prefs ->
