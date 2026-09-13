@@ -770,6 +770,11 @@ class MainActivity : ComponentActivity() {
                         navBackStackEntry?.destination?.route == "listen_together"
                     }
 
+                    val isLoginScreen = remember(navBackStackEntry) {
+                        val route = navBackStackEntry?.destination?.route.orEmpty()
+                        route == "login" || route == "spotify_login"
+                    }
+
                     val shouldShowSearchBar = remember(active, navBackStackEntry, isFindScreen) {
                         active ||
                                 navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } ||
@@ -785,12 +790,14 @@ class MainActivity : ComponentActivity() {
                         isWrappedScreen,
                         isSettingsScreen,
                         isListenTogetherScreen,
+                        isLoginScreen,
                     ) {
                         !isAmbientMode &&
                             !isFindScreen &&
                             !isWrappedScreen &&
                             !isSettingsScreen &&
-                            !isListenTogetherScreen
+                            !isListenTogetherScreen &&
+                            !isLoginScreen
                     }
 
                     val shouldShowMiniPlayer = remember(
@@ -799,12 +806,14 @@ class MainActivity : ComponentActivity() {
                         isWrappedScreen,
                         isSettingsScreen,
                         isListenTogetherScreen,
+                        isLoginScreen,
                     ) {
                         !isAmbientMode &&
                             !isFindScreen &&
                             !isWrappedScreen &&
                             !isSettingsScreen &&
-                            !isListenTogetherScreen
+                            !isListenTogetherScreen &&
+                            !isLoginScreen
                     }
 
                     val isLandscape = remember(configuration) {
