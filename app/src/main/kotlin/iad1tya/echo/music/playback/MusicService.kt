@@ -78,6 +78,7 @@ import com.echo.innertube.YouTube
 import iad1tya.echo.music.dlna.DLNAManager
 import com.echo.innertube.models.SongItem
 import com.echo.innertube.models.WatchEndpoint
+import com.echo.innertube.CloudflareDnsResolver
 import iad1tya.echo.music.MainActivity
 import iad1tya.echo.music.R
 import iad1tya.echo.music.constants.AudioNormalizationKey
@@ -343,6 +344,7 @@ class MusicService :
     private var currentMediaIdRetryCount = mutableMapOf<String, Int>()
     private val MAX_RETRY_PER_SONG = 3
     private val RETRY_DELAY_MS = 1000L
+    private val CHUNK_LENGTH = 512 * 1024L
 
     // Track failed songs to prevent infinite retry loops
     private val recentlyFailedSongs = mutableSetOf<String>()
@@ -1217,7 +1219,7 @@ class MusicService :
                         status.copy(items = status.items.filterVideoSongs(true))
                     } else status
                 }
-            if (queue.preloadItem != null && player.playbackState == STATE_IDLE) return@launch
+            if (currentQueue != queue) return@launch
             if (initialStatus.title != null) {
                 queueTitle = initialStatus.title
             }
@@ -2151,10 +2153,35 @@ class MusicService :
     // The ContentObserver registered in onCreate is the reliable replacement.
 
     override fun onPlayerError(error: PlaybackException) {
+        val currentId = player.currentMediaItem?.mediaId
+        val httpStatusCode = getHttpResponseCode(error)
+        val isStreamError = currentId != null && (
+            error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ||
+            error.errorCode == PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND ||
+            error.errorCode == PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE ||
+            httpStatusCode in setOf(403, 404, 410, 416, 429, 500, 502, 503)
+        )
+
+        // Silent instant recovery for recoverable stream errors without flashing error to UI
+        if (isStreamError && currentId != null && !hasExceededRetryLimit(currentId)) {
+            incrementRetryCount(currentId)
+            Log.w("MusicService", "Recovering stream silently for $currentId (http=$httpStatusCode, code=${error.errorCode})")
+            songUrlCache.remove(currentId)
+            try {
+                playerCache.removeResource(currentId)
+                YTPlayerUtils.forceRefreshForVideo(currentId)
+                YTPlayerUtils.markPreferredClientFailed(currentId, playerStreamClient, httpStatusCode ?: 403)
+            } catch (e: Exception) {
+                Log.e("MusicService", "Failed to clear client cache", e)
+            }
+            player.prepare()
+            player.playWhenReady = true
+            return
+        }
+
         super.onPlayerError(error)
         Log.e("MusicService", "Playback error: ${error.message}", error)
 
-        val currentId = player.currentMediaItem?.mediaId
         val currentTitle = player.currentMetadata?.title ?: "Unknown Song"
         val currentArtist = player.currentMetadata?.artists?.firstOrNull()?.name ?: "Unknown Artist"
         iad1tya.echo.music.utils.ErrorLogger.logError(
@@ -2408,6 +2435,7 @@ class MusicService :
         songUrlCache.remove(mediaId)
         try {
             YTPlayerUtils.forceRefreshForVideo(mediaId)
+            YTPlayerUtils.markPreferredClientFailed(mediaId, playerStreamClient, 403)
         } catch (e: Exception) {
             Log.e("MusicService", "Failed to clear decryption caches", e)
         }
@@ -2467,10 +2495,23 @@ class MusicService :
                             OkHttpDataSource.Factory(
                                 OkHttpClient
                                     .Builder()
-                                    .proxy(YouTube.proxy)
+                                    .dns(CloudflareDnsResolver)
+                                    .proxy(YouTube.streamProxy)
+                                    .followRedirects(true)
+                                    .followSslRedirects(true)
                                     .addInterceptor { chain ->
                                         val request = chain.request()
-                                        val clientParam = request.url.queryParameter("c")
+                                        val host = request.url.host
+                                        val isYouTubeMediaHost =
+                                            host.endsWith("googlevideo.com") ||
+                                                host.endsWith("googleusercontent.com") ||
+                                                host.endsWith("youtube.com") ||
+                                                host.endsWith("youtube-nocookie.com") ||
+                                                host.endsWith("ytimg.com")
+
+                                        if (!isYouTubeMediaHost) return@addInterceptor chain.proceed(request)
+
+                                        val clientParam = request.url.queryParameter("c")?.trim().orEmpty()
                                         val ua = StreamClientUtils.resolveUserAgent(clientParam)
                                         val originReferer = StreamClientUtils.resolveOriginReferer(clientParam)
                                         val builder = request.newBuilder().header("User-Agent", ua)
@@ -2531,7 +2572,9 @@ class MusicService :
             // Check if we have a valid cached URL (not expired)
             songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
-                return@Factory dataSpec.withUri(it.first.toUri())
+                val streamUrl = it.first
+                val length = if (dataSpec.length >= 0) minOf(dataSpec.length, CHUNK_LENGTH) else CHUNK_LENGTH
+                return@Factory dataSpec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, length)
             }
 
             // Need to fetch a new URL - either first time or URL expired
@@ -2606,7 +2649,8 @@ class MusicService :
 
                 songUrlCache[mediaId] =
                     streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
-                return@Factory dataSpec.withUri(streamUrl.toUri())
+                val length = if (dataSpec.length >= 0) minOf(dataSpec.length, CHUNK_LENGTH) else CHUNK_LENGTH
+                return@Factory dataSpec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, length)
             }
         }
     }

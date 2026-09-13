@@ -120,6 +120,15 @@ object YouTube {
             innerTube.useLoginForBrowse = value
         }
 
+    var streamBypassProxy: Boolean = false
+    val streamProxy: java.net.Proxy?
+        get() = if (streamBypassProxy) null else proxy
+
+    fun appendGvsPoToken(url: String, client: YouTubeClient? = null): String {
+        if (url.contains("pot=")) return url
+        return url
+    }
+
     suspend fun searchSuggestions(query: String): Result<SearchSuggestions> = runCatching {
         val response = innerTube.getSearchSuggestions(WEB_REMIX, query).body<GetSearchSuggestionsResponse>()
         SearchSuggestions(

@@ -26,9 +26,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.datastore.preferences.core.edit
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -38,6 +41,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -196,6 +201,7 @@ import iad1tya.echo.music.ui.component.AppNavigationBar
 import iad1tya.echo.music.ui.component.BottomSheetMenu
 import iad1tya.echo.music.ui.component.BottomSheetPage
 import iad1tya.echo.music.ui.component.FloatingNavigationToolbar
+import iad1tya.echo.music.ui.component.FluidSlidingNavigationBar
 import iad1tya.echo.music.ui.component.IconButton
 import iad1tya.echo.music.ui.component.ImportantNoticeDialog
 import iad1tya.echo.music.ui.component.LocalBottomSheetPageState
@@ -410,7 +416,7 @@ class MainActivity : ComponentActivity() {
 
             LaunchedEffect(playerConnection) {
                 if (playerConnection != null) {
-                    delay(100)
+                    delay(500)
                     isAppReady = true
                 }
             }
@@ -506,9 +512,26 @@ class MainActivity : ComponentActivity() {
                                 if (tagName.isNotEmpty()) {
                                     val version = tagName.removePrefix("v")
                                     withContext(Dispatchers.Main) {
-                                        latestVersionName = version
-                                        if (version != BuildConfig.VERSION_NAME) {
+                                        val isNewer = try {
+                                            val currentParts = BuildConfig.VERSION_NAME.split(".").map { Regex("\\d+").find(it)?.value?.toIntOrNull() ?: 0 }
+                                            val latestParts = version.split(".").map { Regex("\\d+").find(it)?.value?.toIntOrNull() ?: 0 }
+                                            val length = maxOf(currentParts.size, latestParts.size)
+                                            var newer = false
+                                            for (i in 0 until length) {
+                                                val c = currentParts.getOrElse(i) { 0 }
+                                                val l = latestParts.getOrElse(i) { 0 }
+                                                if (l > c) { newer = true; break }
+                                                if (l < c) { newer = false; break }
+                                            }
+                                            newer
+                                        } catch (e: Exception) {
+                                            false
+                                        }
+                                        if (isNewer) {
+                                            latestVersionName = version
                                             showUpdateNotification(this@MainActivity, version)
+                                        } else {
+                                            latestVersionName = BuildConfig.VERSION_NAME
                                         }
                                     }
                                 }
@@ -574,7 +597,7 @@ class MainActivity : ComponentActivity() {
                 isDynamicColor = enableMaterialYou,
                 useSystemFont = useSystemFont,
             ) {
-                Crossfade(targetState = isAppReady, animationSpec = tween(250, easing = FastOutSlowInEasing), label = "main_fade") { ready ->
+                Crossfade(targetState = isAppReady, animationSpec = tween(350, easing = FastOutSlowInEasing), label = "main_fade") { ready ->
                     if (!ready) {
                         AppSplashScreen()
                     } else {
@@ -1526,10 +1549,11 @@ class MainActivity : ComponentActivity() {
                                                         },
                                                     )
                                                 } else {
-                                                    FloatingNavigationToolbar(
+                                                    FluidSlidingNavigationBar(
                                                         items = navigationItems,
-                                                        slim = slimNav,
+                                                        currentRoute = navBackStackEntry?.destination?.route ?: "",
                                                         pureBlack = pureBlack,
+                                                        slim = slimNav,
                                                         modifier = Modifier
                                                             .align(Alignment.BottomCenter)
                                                             .padding(
@@ -1537,10 +1561,18 @@ class MainActivity : ComponentActivity() {
                                                                 end = 12.dp,
                                                                 bottom = bottomInset + floatingBarsBottomPadding,
                                                             )
+                                                            .border(
+                                                                width = 1.dp,
+                                                                color = if (pureBlack) Color.White.copy(alpha = 0.18f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f),
+                                                                shape = RoundedCornerShape(24.dp)
+                                                            )
+                                                            .clip(RoundedCornerShape(24.dp))
+                                                            .fillMaxWidth()
                                                             .height(navVisibleHeight),
-                                                        isSelected = isNavItemSelected,
-                                                        onItemClick = onNavItemClick,
-                                                        onItemLongClick = { screen ->
+                                                        onTabSelected = { screen ->
+                                                            onNavItemClick(screen, isNavItemSelected(screen))
+                                                        },
+                                                        onTabLongClick = { screen ->
                                                             if (screen == Screens.Home) {
                                                                 showErrorLogDialog = true
                                                             }
@@ -1675,108 +1707,103 @@ class MainActivity : ComponentActivity() {
                                             NavigationTab.FIND -> Screens.Find
                                             else -> Screens.Home
                                         }.route,
-                                        // Enter Transition - smoother with easing
                                         enterTransition = {
                                             if (targetState.destination.route == "ambient_mode") {
-                                                fadeIn(animationSpec = tween(700, easing = LinearEasing))
+                                                fadeIn(animationSpec = tween(400, easing = LinearEasing))
                                             } else {
-                                                val currentRouteIndex = navigationItems.indexOfFirst {
-                                                    it.route == targetState.destination.route
-                                                }
-                                                val previousRouteIndex = navigationItems.indexOfFirst {
-                                                    it.route == initialState.destination.route
-                                                }
+                                                val initialIndex = navigationItems.indexOfFirst { it.route == initialState.destination.route }
+                                                val targetIndex = navigationItems.indexOfFirst { it.route == targetState.destination.route }
 
-                                                if (targetState.destination.route == Screens.Find.route) {
-                                                    fadeIn(animationSpec = tween(300))
-                                                } else if (currentRouteIndex == -1 || currentRouteIndex > previousRouteIndex)
-                                                    slideInHorizontally(
-                                                        initialOffsetX = { it / 4 },
-                                                        animationSpec = tween(250, easing = FastOutSlowInEasing)
-                                                    ) + fadeIn(tween(250, easing = LinearEasing))
-                                                else
-                                                    slideInHorizontally(
-                                                        initialOffsetX = { -it / 4 },
-                                                        animationSpec = tween(250, easing = FastOutSlowInEasing)
-                                                    ) + fadeIn(tween(250, easing = LinearEasing))
+                                                if (initialIndex != -1 && targetIndex != -1) {
+                                                    val direction = if (targetIndex > initialIndex) {
+                                                        AnimatedContentTransitionScope.SlideDirection.Left
+                                                    } else {
+                                                        AnimatedContentTransitionScope.SlideDirection.Right
+                                                    }
+                                                    slideIntoContainer(
+                                                        towards = direction,
+                                                        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
+                                                    )
+                                                } else {
+                                                    fadeIn(tween(250)) + slideInHorizontally(
+                                                        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
+                                                    ) { it / 2 }
+                                                }
                                             }
                                         },
-                                        // Exit Transition - smoother
+                                        // Exit Transition
                                         exitTransition = {
                                             if (initialState.destination.route == "ambient_mode") {
-                                                fadeOut(animationSpec = tween(700, easing = LinearEasing))
+                                                fadeOut(animationSpec = tween(400, easing = LinearEasing))
                                             } else {
-                                                val currentRouteIndex = navigationItems.indexOfFirst {
-                                                    it.route == initialState.destination.route
-                                                }
-                                                val targetRouteIndex = navigationItems.indexOfFirst {
-                                                    it.route == targetState.destination.route
-                                                }
+                                                val initialIndex = navigationItems.indexOfFirst { it.route == initialState.destination.route }
+                                                val targetIndex = navigationItems.indexOfFirst { it.route == targetState.destination.route }
 
-                                                if (initialState.destination.route == Screens.Find.route) {
-                                                    fadeOut(animationSpec = tween(300))
-                                                } else if (targetRouteIndex == -1 || targetRouteIndex > currentRouteIndex)
-                                                    slideOutHorizontally(
-                                                        targetOffsetX = { -it / 4 },
-                                                        animationSpec = tween(200, easing = FastOutLinearInEasing)
-                                                    ) + fadeOut(tween(200, easing = LinearEasing))
-                                                else
-                                                    slideOutHorizontally(
-                                                        targetOffsetX = { it / 4 },
-                                                        animationSpec = tween(200, easing = FastOutLinearInEasing)
-                                                    ) + fadeOut(tween(200, easing = LinearEasing))
+                                                if (initialIndex != -1 && targetIndex != -1) {
+                                                    val direction = if (targetIndex > initialIndex) {
+                                                        AnimatedContentTransitionScope.SlideDirection.Left
+                                                    } else {
+                                                        AnimatedContentTransitionScope.SlideDirection.Right
+                                                    }
+                                                    slideOutOfContainer(
+                                                        towards = direction,
+                                                        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
+                                                    )
+                                                } else {
+                                                    fadeOut(tween(250)) + slideOutHorizontally(
+                                                        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
+                                                    ) { -it / 2 }
+                                                }
                                             }
                                         },
                                         // Pop Enter Transition
                                         popEnterTransition = {
                                             if (targetState.destination.route == "ambient_mode") {
-                                                fadeIn(animationSpec = tween(700, easing = LinearEasing))
+                                                fadeIn(animationSpec = tween(400, easing = LinearEasing))
                                             } else {
-                                                val currentRouteIndex = navigationItems.indexOfFirst {
-                                                    it.route == targetState.destination.route
-                                                }
-                                                val previousRouteIndex = navigationItems.indexOfFirst {
-                                                    it.route == initialState.destination.route
-                                                }
+                                                val initialIndex = navigationItems.indexOfFirst { it.route == initialState.destination.route }
+                                                val targetIndex = navigationItems.indexOfFirst { it.route == targetState.destination.route }
 
-                                                if (targetState.destination.route == Screens.Find.route) {
-                                                    fadeIn(animationSpec = tween(300))
-                                                } else if (previousRouteIndex != -1 && previousRouteIndex < currentRouteIndex)
-                                                    slideInHorizontally(
-                                                        initialOffsetX = { it / 4 },
-                                                        animationSpec = tween(250, easing = FastOutSlowInEasing)
-                                                    ) + fadeIn(tween(250, easing = LinearEasing))
-                                                else
-                                                    slideInHorizontally(
-                                                        initialOffsetX = { -it / 4 },
-                                                        animationSpec = tween(250, easing = FastOutSlowInEasing)
-                                                    ) + fadeIn(tween(250, easing = LinearEasing))
+                                                if (initialIndex != -1 && targetIndex != -1) {
+                                                    val direction = if (targetIndex > initialIndex) {
+                                                        AnimatedContentTransitionScope.SlideDirection.Left
+                                                    } else {
+                                                        AnimatedContentTransitionScope.SlideDirection.Right
+                                                    }
+                                                    slideIntoContainer(
+                                                        towards = direction,
+                                                        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
+                                                    )
+                                                } else {
+                                                    fadeIn(tween(250)) + slideInHorizontally(
+                                                        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
+                                                    ) { -it / 2 }
+                                                }
                                             }
                                         },
                                         // Pop Exit Transition
                                         popExitTransition = {
                                             if (initialState.destination.route == "ambient_mode") {
-                                                fadeOut(animationSpec = tween(700, easing = LinearEasing))
+                                                fadeOut(animationSpec = tween(400, easing = LinearEasing))
                                             } else {
-                                                val currentRouteIndex = navigationItems.indexOfFirst {
-                                                    it.route == initialState.destination.route
-                                                }
-                                                val targetRouteIndex = navigationItems.indexOfFirst {
-                                                    it.route == targetState.destination.route
-                                                }
+                                                val initialIndex = navigationItems.indexOfFirst { it.route == initialState.destination.route }
+                                                val targetIndex = navigationItems.indexOfFirst { it.route == targetState.destination.route }
 
-                                                if (initialState.destination.route == Screens.Find.route) {
-                                                    fadeOut(animationSpec = tween(300))
-                                                } else if (currentRouteIndex != -1 && currentRouteIndex < targetRouteIndex)
-                                                    slideOutHorizontally(
-                                                        targetOffsetX = { -it / 4 },
-                                                        animationSpec = tween(200, easing = FastOutLinearInEasing)
-                                                    ) + fadeOut(tween(200, easing = LinearEasing))
-                                                else
-                                                    slideOutHorizontally(
-                                                        targetOffsetX = { it / 4 },
-                                                        animationSpec = tween(200, easing = FastOutLinearInEasing)
-                                                    ) + fadeOut(tween(200, easing = LinearEasing))
+                                                if (initialIndex != -1 && targetIndex != -1) {
+                                                    val direction = if (targetIndex > initialIndex) {
+                                                        AnimatedContentTransitionScope.SlideDirection.Left
+                                                    } else {
+                                                        AnimatedContentTransitionScope.SlideDirection.Right
+                                                    }
+                                                    slideOutOfContainer(
+                                                        towards = direction,
+                                                        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
+                                                    )
+                                                } else {
+                                                    fadeOut(tween(250)) + slideOutHorizontally(
+                                                        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
+                                                    ) { it / 2 }
+                                                }
                                             }
                                         },
                                         modifier = Modifier.nestedScroll(

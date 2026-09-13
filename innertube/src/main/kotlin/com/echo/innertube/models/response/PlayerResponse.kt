@@ -60,7 +60,8 @@ data class PlayerResponse(
             val audioChannels: Int?,
             val loudnessDb: Double?,
             val lastModified: Long?,
-            val signatureCipher: String?,
+            val signatureCipher: String? = null,
+            val cipher: String? = null,
             val audioTrack: AudioTrack?
         ) {
             val isAudio: Boolean

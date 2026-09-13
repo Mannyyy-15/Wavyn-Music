@@ -228,7 +228,7 @@ fun AboutScreen(
             shape = RoundedCornerShape(20.dp)
         ) {
             SocialLinkItem(
-                icon = painterResource(R.drawable.instagram_asset),
+                icon = painterResource(R.drawable.instagram),
                 title = "Instagram",
                 subtitle = "@iad1tya",
                 onClick = { uriHandler.openUri("https://instagram.com/iad1tya") }
@@ -243,7 +243,7 @@ fun AboutScreen(
             shape = RoundedCornerShape(20.dp)
         ) {
             SocialLinkItem(
-                icon = painterResource(R.drawable.twitter_asset),
+                icon = rememberVectorPainter(Icons.Rounded.Share),
                 title = "Twitter / X",
                 subtitle = "@xad1tya",
                 onClick = { uriHandler.openUri("https://x.com/xad1tya") }
@@ -288,7 +288,7 @@ fun AboutScreen(
             shape = RoundedCornerShape(20.dp)
         ) {
             SocialLinkItem(
-                icon = painterResource(R.drawable.telegram),
+                icon = rememberVectorPainter(Icons.Rounded.Send),
                 title = "Telegram",
                 subtitle = "Follow for updates",
                 onClick = { uriHandler.openUri("https://t.me/WavynMusicApp") }

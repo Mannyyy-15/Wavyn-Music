@@ -207,13 +207,30 @@ fun UpdaterScreen(
                 
                 withContext(Dispatchers.Main) {
                     isChecking = false
-                    if (latestVersion != BuildConfig.VERSION_NAME) {
+                    val isNewer = try {
+                        val currentParts = BuildConfig.VERSION_NAME.split(".").map { Regex("\\d+").find(it)?.value?.toIntOrNull() ?: 0 }
+                        val latestParts = latestVersion.split(".").map { Regex("\\d+").find(it)?.value?.toIntOrNull() ?: 0 }
+                        val length = maxOf(currentParts.size, latestParts.size)
+                        var newer = false
+                        for (i in 0 until length) {
+                            val c = currentParts.getOrElse(i) { 0 }
+                            val l = latestParts.getOrElse(i) { 0 }
+                            if (l > c) { newer = true; break }
+                            if (l < c) { newer = false; break }
+                        }
+                        newer
+                    } catch (e: Exception) {
+                        false
+                    }
+
+                    if (isNewer) {
                         availableVersion = latestVersion
                         downloadUrl = apkDownloadUrl
                         releaseNotes = notes
                         showUpdateNotification(context, latestVersion)
                         Toast.makeText(context, "New version $latestVersion available!", Toast.LENGTH_LONG).show()
                     } else {
+                        availableVersion = null
                         Toast.makeText(context, "You're on the latest version (v${BuildConfig.VERSION_NAME})", Toast.LENGTH_SHORT).show()
                     }
                 }
