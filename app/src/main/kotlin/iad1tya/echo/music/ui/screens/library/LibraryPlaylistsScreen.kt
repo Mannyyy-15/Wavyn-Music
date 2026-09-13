@@ -208,6 +208,14 @@ fun LibraryPlaylistsScreen(
         }
     }
 
+    LaunchedEffect(isSpotifyLoggedIn) {
+        if (isSpotifyLoggedIn) {
+            withContext(Dispatchers.IO) {
+                iad1tya.echo.music.spotify.SpotifyAuthManager.syncLibrary()
+            }
+        }
+    }
+
     LaunchedEffect(scrollToTop?.value) {
         if (scrollToTop?.value == true) {
             when (viewType) {

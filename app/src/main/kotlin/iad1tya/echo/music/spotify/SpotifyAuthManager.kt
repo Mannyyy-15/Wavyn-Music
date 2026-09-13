@@ -158,16 +158,12 @@ object SpotifyAuthManager {
 
             // 2. Fetch playlists (including collaborative, user-created, followed)
             val playlists = SpotifyApiService.getUserPlaylists(token, limit = 50)
-            if (playlists.isNotEmpty()) {
-                _userPlaylists.value = playlists
-                Log.i(TAG, "Spotify library synced: ${playlists.size} playlists")
-            }
+            _userPlaylists.value = playlists
+            Log.i(TAG, "Spotify library synced: ${playlists.size} playlists")
 
             // 3. Fetch liked tracks to compute count
             val liked = SpotifyApiService.getUserSavedTracks(token, limit = 50)
-            if (liked.isNotEmpty()) {
-                _likedTracksCount.value = liked.size
-            }
+            _likedTracksCount.value = liked.size
         } catch (e: Exception) {
             Log.w(TAG, "syncLibrary failed: ${e.message}")
         }

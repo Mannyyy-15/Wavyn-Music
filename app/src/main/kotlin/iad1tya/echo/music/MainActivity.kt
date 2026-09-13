@@ -217,7 +217,6 @@ import iad1tya.echo.music.ui.screens.search.LocalSearchScreen
 import iad1tya.echo.music.ui.screens.search.OnlineSearchScreen
 import iad1tya.echo.music.ui.screens.settings.DarkMode
 import iad1tya.echo.music.ui.screens.settings.NavigationTab
-import iad1tya.echo.music.ui.component.AppGlowAnimatedBackground
 import iad1tya.echo.music.ui.theme.ColorSaver
 import iad1tya.echo.music.ui.theme.DefaultThemeColor
 import iad1tya.echo.music.ui.theme.PlayerColorExtractor
@@ -591,29 +590,13 @@ class MainActivity : ComponentActivity() {
                 useSystemFont = useSystemFont,
             ) {
                 BoxWithConstraints(
-                    modifier = Modifier.fillMaxSize()
+                    modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            MaterialTheme.colorScheme.surface
+                        )
                 ) {
-                    val mediaMetadata by playerConnection?.mediaMetadata?.collectAsState() ?: remember { mutableStateOf(null) }
-                    var ambientGlowColors by remember { mutableStateOf<List<Color>>(emptyList()) }
-
-                    LaunchedEffect(mediaMetadata?.thumbnailUrl) {
-                        val thumb = mediaMetadata?.thumbnailUrl
-                        if (!thumb.isNullOrBlank()) {
-                            val extracted = PlayerColorExtractor.extractFromUrl(
-                                context = this@MainActivity,
-                                url = thumb
-                            )
-                            if (extracted.isNotEmpty()) {
-                                ambientGlowColors = extracted
-                            }
-                        }
-                    }
-
-                    AppGlowAnimatedBackground(
-                        colors = ambientGlowColors,
-                        pureBlack = pureBlack,
-                        darkTheme = useDarkTheme,
-                    )
                     val context = androidx.compose.ui.platform.LocalContext.current
                     val focusManager = LocalFocusManager.current
                     val density = LocalDensity.current
@@ -1055,7 +1038,7 @@ class MainActivity : ComponentActivity() {
                     var showAccountDialog by remember { mutableStateOf(false) }
 
                     val baseBg = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
-                    val insetBg = Color.Transparent
+                    val insetBg = if (playerBottomSheetState.progress > 0f) Color.Transparent else baseBg
 
                     // Handle back press on search screens - navigate to home instead of search tab
                     val isOnSearchTab = navBackStackEntry?.destination?.route == Screens.Search.route
@@ -1090,7 +1073,6 @@ class MainActivity : ComponentActivity() {
                         LocalSyncUtils provides syncUtils,
                     ) {
                         Scaffold(
-                            containerColor = Color.Transparent,
                             topBar = {
                                 AnimatedVisibility(
                                     visible = shouldShowTopBar,
@@ -1127,17 +1109,17 @@ class MainActivity : ComponentActivity() {
                                                     brush = Brush.verticalGradient(
                                                         colors = listOf(
                                                             if (pureBlack) 
-                                                                Color.Black.copy(alpha = 0.82f)
+                                                                Color.Black.copy(alpha = 0.98f)
                                                             else if (useDarkTheme)
-                                                                MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                                                                MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)
                                                             else
-                                                                MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
+                                                                MaterialTheme.colorScheme.surface.copy(alpha = 0.99f),
                                                             if (pureBlack) 
-                                                                Color.Black.copy(alpha = 0.60f)
+                                                                Color.Black.copy(alpha = 0.90f)
                                                             else if (useDarkTheme)
-                                                                MaterialTheme.colorScheme.surface.copy(alpha = 0.50f)
+                                                                MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
                                                             else
-                                                                MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
+                                                                MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
                                                             Color.Transparent
                                                         )
                                                     )

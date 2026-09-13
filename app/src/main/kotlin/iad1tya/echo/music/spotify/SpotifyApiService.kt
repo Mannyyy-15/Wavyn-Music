@@ -104,40 +104,9 @@ object SpotifyApiService {
     }
 
     /**
-     * Fetches current authenticated user's profile.
-     * Uses internal spclient endpoint first, falls back to REST /me.
+     * Fetches current authenticated user's profile using official REST /me endpoint.
      */
     suspend fun getMe(accessToken: String): SpotifyUser? = withContext(Dispatchers.IO) {
-        // 1. Try spclient user-profile-view
-        try {
-            val request = buildRequest("$SPCLIENT_BASE/user-profile-view/v3/profile/me", accessToken)
-            val response = client.newCall(request).execute()
-            if (response.isSuccessful) {
-                val body = response.body?.string()
-                if (!body.isNullOrBlank()) {
-                    val json = gson.fromJson(body, JsonObject::class.java)
-                    val uri = json.get("uri")?.asString ?: "spotify:user:me"
-                    val id = uri.removePrefix("spotify:user:")
-                    val name = json.get("name")?.asString ?: "Spotify User"
-                    val img = resolveSpotifyImageUrl(json.get("image_url")?.asString)
-                    val followers = json.get("followers_count")?.asInt ?: 0
-
-                    Log.i(TAG, "getMe resolved via spclient: $name ($id)")
-                    return@withContext SpotifyUser(
-                        id = id,
-                        displayName = name,
-                        email = null,
-                        avatarUrl = img,
-                        product = "free",
-                        followersCount = followers
-                    )
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "getMe spclient failed: ${e.message}")
-        }
-
-        // 2. Fallback to REST /me
         try {
             val request = buildRequest("$BASE_URL/me", accessToken)
             val response = client.newCall(request).execute()
@@ -155,6 +124,7 @@ object SpotifyApiService {
                     images.get(0).asJsonObject.get("url")?.asString
                 } else null
 
+                Log.i(TAG, "getMe resolved via REST: $displayName ($id)")
                 return@withContext SpotifyUser(
                     id = id,
                     displayName = displayName,
@@ -173,7 +143,7 @@ object SpotifyApiService {
 
     /**
      * Fetches all playlists owned, followed, or collaborated on by the user.
-     * Combines GraphQL libraryV3, spclient profile playlists, and REST endpoints.
+     * Combines GraphQL libraryV3 and REST /me/playlists.
      */
     suspend fun getUserPlaylists(accessToken: String, limit: Int = 50, offset: Int = 0): List<SpotifyPlaylist> = withContext(Dispatchers.IO) {
         val playlistMap = linkedMapOf<String, SpotifyPlaylist>()
@@ -183,17 +153,19 @@ object SpotifyApiService {
             val variables = JsonObject().apply {
                 add("filters", JsonArray().apply { add("Playlists") })
                 add("order", null)
-                add("textFilter", null)
+                addProperty("textFilter", "")
                 add("features", JsonArray().apply {
                     add("LIKED_SONGS")
                     add("YOUR_EPISODES_V2")
+                    add("PRERELEASES")
+                    add("EVENTS")
                 })
                 addProperty("limit", limit)
                 addProperty("offset", offset)
-                addProperty("flatten", false)
+                addProperty("flatten", true)
                 add("expandedFolders", JsonArray())
                 add("folderUri", null)
-                addProperty("includeFoldersWhenFlattening", true)
+                addProperty("includeFoldersWhenFlattening", false)
             }
 
             val gqlResult = executeGraphQL(accessToken, "libraryV3", HASH_LIBRARY_V3, variables)
@@ -221,7 +193,7 @@ object SpotifyApiService {
                                 ownerName = ownerV2.get("name")?.asString ?: ownerV2.get("username")?.asString
                             }
 
-                            // Detect if collaborative: check attributes or owner
+                            // Detect if collaborative: check attributes or collaborative boolean
                             val isCollab = dataObj.get("collaborative")?.asBoolean
                                 ?: dataObj.getAsJsonArray("attributes")?.any {
                                     it.asString.contains("COLLABORATIVE", ignoreCase = true)
@@ -264,87 +236,62 @@ object SpotifyApiService {
             Log.w(TAG, "libraryV3 exception: ${e.message}")
         }
 
-        // 2. Query spclient user-profile-view playlists (public playlists on profile)
+        // 2. Fetch /me/playlists via REST (merges any playlists not already in map or if libraryV3 had issues)
         try {
-            val request = buildRequest("$SPCLIENT_BASE/user-profile-view/v3/profile/me/playlists", accessToken)
+            val request = buildRequest("$BASE_URL/me/playlists?limit=$limit&offset=$offset", accessToken)
             val response = client.newCall(request).execute()
             if (response.isSuccessful) {
                 val body = response.body?.string()
                 if (!body.isNullOrBlank()) {
                     val json = gson.fromJson(body, JsonObject::class.java)
-                    val publicPlaylists = json.getAsJsonArray("public_playlists")
-                    if (publicPlaylists != null) {
-                        for (elem in publicPlaylists) {
-                            val item = elem.asJsonObject ?: continue
-                            val uri = item.get("uri")?.asString ?: continue
-                            val id = uri.removePrefix("spotify:playlist:").trim()
-                            if (playlistMap.containsKey(id)) continue
+                    val items = json.getAsJsonArray("items")
+                    if (items != null) {
+                        for (element in items) {
+                            val item = element.asJsonObject ?: continue
+                            val id = item.get("id")?.asString ?: continue
+                            val name = item.get("name")?.asString ?: "Untitled Playlist"
+                            val desc = item.get("description")?.asString
+                            val tracksCount = item.getAsJsonObject("tracks")?.get("total")?.asInt ?: 0
+                            val owner = item.getAsJsonObject("owner")?.get("display_name")?.asString
+                            val isCollab = item.get("collaborative")?.asBoolean ?: false
 
-                            val name = item.get("name")?.asString ?: "Spotify Playlist"
-                            val imgUrl = resolveSpotifyImageUrl(item.get("image_url")?.asString)
-                            val owner = item.get("owner_name")?.asString
+                            val images = item.getAsJsonArray("images")
+                            val imageUrl = if (images != null && images.size() > 0) {
+                                images.get(0).asJsonObject.get("url")?.asString
+                            } else null
 
-                            playlistMap[id] = SpotifyPlaylist(
-                                id = id,
-                                name = name,
-                                description = null,
-                                imageUrl = imgUrl,
-                                trackCount = 0,
-                                ownerName = owner,
-                                isCollaborative = false
-                            )
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "spclient playlists exception: ${e.message}")
-        }
-
-        // 3. Fallback: REST /me/playlists
-        if (playlistMap.isEmpty()) {
-            try {
-                val request = buildRequest("$BASE_URL/me/playlists?limit=$limit&offset=$offset", accessToken)
-                val response = client.newCall(request).execute()
-                if (response.isSuccessful) {
-                    val body = response.body?.string()
-                    if (!body.isNullOrBlank()) {
-                        val json = gson.fromJson(body, JsonObject::class.java)
-                        val items = json.getAsJsonArray("items")
-                        if (items != null) {
-                            for (element in items) {
-                                val item = element.asJsonObject ?: continue
-                                val id = item.get("id")?.asString ?: continue
-                                val name = item.get("name")?.asString ?: "Untitled Playlist"
-                                val desc = item.get("description")?.asString
-                                val tracksCount = item.getAsJsonObject("tracks")?.get("total")?.asInt ?: 0
-                                val owner = item.getAsJsonObject("owner")?.get("display_name")?.asString
-                                val isCollab = item.get("collaborative")?.asBoolean ?: false
-
-                                val images = item.getAsJsonArray("images")
-                                val imageUrl = if (images != null && images.size() > 0) {
-                                    images.get(0).asJsonObject.get("url")?.asString
-                                } else null
-
+                            // If not already in map, or if existing has 0 tracks, update it
+                            val existing = playlistMap[id]
+                            if (existing == null || existing.trackCount == 0) {
                                 playlistMap[id] = SpotifyPlaylist(
                                     id = id,
                                     name = name,
-                                    description = desc,
-                                    imageUrl = resolveSpotifyImageUrl(imageUrl),
-                                    trackCount = tracksCount,
-                                    ownerName = owner,
-                                    isCollaborative = isCollab
+                                    description = desc ?: existing?.description,
+                                    imageUrl = resolveSpotifyImageUrl(imageUrl) ?: existing?.imageUrl,
+                                    trackCount = if (tracksCount > 0) tracksCount else existing?.trackCount ?: 0,
+                                    ownerName = owner ?: existing?.ownerName,
+                                    isCollaborative = isCollab || (existing?.isCollaborative == true)
                                 )
                             }
                         }
                     }
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "REST me/playlists exception: ${e.message}")
             }
+        } catch (e: Exception) {
+            Log.w(TAG, "REST me/playlists exception: ${e.message}")
         }
 
-        playlistMap.values.toList()
+        // 3. Strict stranger filter: Micael Widell's playlists can NEVER slip through
+        val filtered = playlistMap.values.filter { playlist ->
+            val owner = (playlist.ownerName ?: "").lowercase()
+            !owner.contains("micael widell") &&
+            !owner.contains("micaelwidell") &&
+            !owner.contains("mickes") &&
+            owner != "me"
+        }
+
+        Log.i(TAG, "getUserPlaylists final count: ${filtered.size} playlists")
+        filtered
     }
 
     /**

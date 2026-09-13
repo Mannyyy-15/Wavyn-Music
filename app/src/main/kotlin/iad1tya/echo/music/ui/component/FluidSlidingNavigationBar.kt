@@ -37,7 +37,7 @@ fun FluidSlidingNavigationBar(
     onTabLongClick: ((Screens) -> Unit)? = null
 ) {
     val selectedIndex = items.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
-    val barColor = if (pureBlack) Color(0xFF0D0D0D).copy(alpha = 0.80f) else MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.80f)
+    val barColor = if (pureBlack) Color(0xFF0D0D0D) else MaterialTheme.colorScheme.surfaceContainer
 
     BoxWithConstraints(
         modifier = modifier

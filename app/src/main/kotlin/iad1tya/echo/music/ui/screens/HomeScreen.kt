@@ -198,6 +198,12 @@ fun HomeScreen(
         }
     }
 
+    LaunchedEffect(isSpotifyLoggedIn) {
+        if (isSpotifyLoggedIn) {
+            iad1tya.echo.music.spotify.SpotifyAuthManager.syncLibrary()
+        }
+    }
+
     LaunchedEffect(Unit) {
         snapshotFlow { lazylistState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { lastVisibleIndex ->

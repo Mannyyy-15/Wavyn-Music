@@ -87,6 +87,9 @@ import iad1tya.echo.music.ui.component.SortHeader
 import iad1tya.echo.music.ui.menu.AlbumMenu
 import iad1tya.echo.music.ui.menu.ArtistMenu
 import iad1tya.echo.music.ui.menu.PlaylistMenu
+import iad1tya.echo.music.spotify.SpotifyAuthManager
+import iad1tya.echo.music.ui.component.SpotifyPlaylistGridItem
+import iad1tya.echo.music.ui.component.SpotifyPlaylistItem
 import iad1tya.echo.music.utils.rememberEnumPreference
 import iad1tya.echo.music.utils.rememberPreference
 import iad1tya.echo.music.viewmodels.LibraryMixViewModel
@@ -155,6 +158,7 @@ private fun QuickAccessSection(
     showTop: Boolean,
     showCached: Boolean,
     showUploaded: Boolean,
+    isSpotifyLoggedIn: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val strLiked = stringResource(R.string.liked)
@@ -163,9 +167,11 @@ private fun QuickAccessSection(
     val strOffline = stringResource(R.string.offline)
     val strUploaded = stringResource(R.string.uploaded_playlist)
     val strLocalMedia = stringResource(R.string.local_media)
+    val strSpotifyLiked = "Spotify Liked"
 
     val cards = buildList {
         if (showLiked) add(Triple(strLiked, R.drawable.favorite, Color(0xFFE91E63)))
+        if (isSpotifyLoggedIn) add(Triple(strSpotifyLiked, R.drawable.ic_spotify, Color(0xFF1DB954)))
         if (showTop) add(Triple(strTop, R.drawable.trending_up, Color(0xFFFFC107)))
         if (showCached) add(Triple(strCached, R.drawable.cached, Color(0xFF26C6DA)))
         if (showDownloaded) add(Triple(strOffline, R.drawable.download, Color(0xFF66BB6A)))
@@ -193,6 +199,7 @@ private fun QuickAccessSection(
                         onClick = {
                             when (title) {
                                 strLiked -> navController.navigate("auto_playlist/liked")
+                                strSpotifyLiked -> navController.navigate("spotify_playlist/liked_songs")
                                 strOffline -> navController.navigate("auto_playlist/downloaded")
                                 strCached -> navController.navigate("cache_playlist/cached")
                                 strUploaded -> navController.navigate("auto_playlist/uploaded")
@@ -222,6 +229,10 @@ fun LibraryMixScreen(
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+
+    val isSpotifyLoggedIn by SpotifyAuthManager.isLoggedIn.collectAsState()
+    val spotifyPlaylists by SpotifyAuthManager.userPlaylists.collectAsState()
+    val spotifyLikedCount by SpotifyAuthManager.likedTracksCount.collectAsState()
 
     var viewType by rememberEnumPreference(AlbumViewTypeKey, LibraryViewType.GRID)
     val (sortType, onSortTypeChange) = rememberEnumPreference(
@@ -358,6 +369,14 @@ fun LibraryMixScreen(
          }
     }
 
+    LaunchedEffect(isSpotifyLoggedIn) {
+        if (isSpotifyLoggedIn) {
+            withContext(Dispatchers.IO) {
+                SpotifyAuthManager.syncLibrary()
+            }
+        }
+    }
+
     val headerContent = @Composable {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -426,7 +445,8 @@ fun LibraryMixScreen(
                             showDownloaded = showDownloaded,
                             showTop = showTop,
                             showCached = showCached,
-                            showUploaded = showUploaded
+                            showUploaded = showUploaded,
+                            isSpotifyLoggedIn = isSpotifyLoggedIn
                         )
                     }
 
@@ -528,6 +548,24 @@ fun LibraryMixScreen(
                                             navController.navigate("auto_playlist/uploaded")
                                         }
                                         .animateItem(),
+                            )
+                        }
+                    }
+
+                    if (isSpotifyLoggedIn && spotifyPlaylists.isNotEmpty()) {
+                        items(
+                            items = spotifyPlaylists,
+                            key = { "spotify_${it.id}" },
+                            contentType = { CONTENT_TYPE_PLAYLIST },
+                        ) { sp ->
+                            SpotifyPlaylistItem(
+                                playlist = sp,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        navController.navigate("spotify_playlist/${sp.id}")
+                                    }
+                                    .animateItem()
                             )
                         }
                     }
@@ -703,7 +741,8 @@ fun LibraryMixScreen(
                             showDownloaded = showDownloaded,
                             showTop = showTop,
                             showCached = showCached,
-                            showUploaded = showUploaded
+                            showUploaded = showUploaded,
+                            isSpotifyLoggedIn = isSpotifyLoggedIn
                         )
                     }
 
@@ -819,6 +858,28 @@ fun LibraryMixScreen(
                                             navController.navigate("auto_playlist/uploaded")
                                         }
                                         .animateItem(),
+                            )
+                        }
+                    }
+
+                    if (isSpotifyLoggedIn && spotifyPlaylists.isNotEmpty()) {
+                        items(
+                            items = spotifyPlaylists,
+                            key = { "spotify_${it.id}" },
+                            contentType = { CONTENT_TYPE_PLAYLIST },
+                        ) { sp ->
+                            SpotifyPlaylistGridItem(
+                                playlist = sp,
+                                fillMaxWidth = true,
+                                modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .combinedClickable(
+                                        onClick = {
+                                            navController.navigate("spotify_playlist/${sp.id}")
+                                        },
+                                    )
+                                    .animateItem()
                             )
                         }
                     }
