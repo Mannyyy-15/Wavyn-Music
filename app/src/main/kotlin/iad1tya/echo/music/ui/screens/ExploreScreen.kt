@@ -2,6 +2,7 @@ package iad1tya.echo.music.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
@@ -386,6 +387,75 @@ fun ExploreScreen(
                                     .animateItem(),
                             )
                         }
+                    }
+                }
+
+                // Spotify Hub Banner Card
+                val isSpotifyLoggedIn by iad1tya.echo.music.spotify.SpotifyAuthManager.isLoggedIn.collectAsState()
+                val currentSpotifyUser by iad1tya.echo.music.spotify.SpotifyAuthManager.currentUser.collectAsState()
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        .clickable {
+                            if (isSpotifyLoggedIn) {
+                                navController.navigate("spotify_hub")
+                            } else {
+                                navController.navigate("spotify_login")
+                            }
+                        },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                    listOf(
+                                        androidx.compose.ui.graphics.Color(0xFF1DB954).copy(alpha = 0.25f),
+                                        androidx.compose.ui.graphics.Color.Transparent
+                                    )
+                                )
+                            )
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_spotify),
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = androidx.compose.ui.graphics.Color(0xFF1DB954)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isSpotifyLoggedIn) {
+                                    "Spotify Hub: ${currentSpotifyUser?.displayName ?: "Connected"}"
+                                } else {
+                                    "Connect Spotify Account"
+                                },
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                            )
+                            Text(
+                                text = if (isSpotifyLoggedIn) {
+                                    "Your playlists, liked songs & 120+ genre radios"
+                                } else {
+                                    "Enjoy your Spotify playlists & recommendations ad-free"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(
+                            painter = painterResource(R.drawable.navigate_next),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
 

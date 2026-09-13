@@ -743,3 +743,13 @@ val CountryCodeToName =
         "YE" to "Yemen",
         "ZW" to "Zimbabwe",
     )
+
+val SpotifySpDcKey = stringPreferencesKey("spotify_sp_dc")
+val SpotifyAccessTokenKey = stringPreferencesKey("spotify_access_token")
+val SpotifyTokenExpirationKey = longPreferencesKey("spotify_token_expiration")
+val SpotifyUserIdKey = stringPreferencesKey("spotify_user_id")
+val SpotifyUserNameKey = stringPreferencesKey("spotify_user_name")
+val SpotifyUserEmailKey = stringPreferencesKey("spotify_user_email")
+val SpotifyUserAvatarKey = stringPreferencesKey("spotify_user_avatar")
+val SpotifyUserProductKey = stringPreferencesKey("spotify_user_product")
+

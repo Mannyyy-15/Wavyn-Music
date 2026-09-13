@@ -84,6 +84,7 @@ import iad1tya.echo.music.ui.component.AccountSwitcherDropdown
 import iad1tya.echo.music.utils.rememberPreference
 import iad1tya.echo.music.viewmodels.HomeViewModel
 import iad1tya.echo.music.viewmodels.AccountSettingsViewModel
+import iad1tya.echo.music.spotify.SpotifyAuthManager
 import kotlinx.coroutines.launch
 
 @Composable
@@ -119,6 +120,9 @@ fun AccountSettings(
     // Get accounts from ViewModel
     val allAccounts by accountSettingsViewModel.allAccounts.collectAsState()
     val activeAccount by accountSettingsViewModel.activeAccount.collectAsState()
+
+    val isSpotifyLoggedIn by SpotifyAuthManager.isLoggedIn.collectAsState()
+    val currentSpotifyUser by SpotifyAuthManager.currentUser.collectAsState()
 
     var showToken by remember { mutableStateOf(false) }
     var showTokenEditor by remember { mutableStateOf(false) }
@@ -338,7 +342,7 @@ fun AccountSettings(
         }
 
 
-        // Import from Spotify — individual card
+        // Spotify Account & Hub Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -350,21 +354,47 @@ fun AccountSettings(
                     .fillMaxWidth()
                     .clickable {
                         onClose()
-                        navController.navigate("spotify_import")
+                        if (isSpotifyLoggedIn) {
+                            navController.navigate("spotify_hub")
+                        } else {
+                            navController.navigate("spotify_login")
+                        }
                     }
                     .padding(horizontal = 18.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Icon(
-                    painter = rememberVectorPainter(Icons.Rounded.Link), // ic_spotify is custom, use Link for now or check if available
+                    painter = painterResource(R.drawable.ic_spotify),
                     contentDescription = null,
-                    modifier = Modifier.size(22.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    modifier = Modifier.size(24.dp),
+                    tint = androidx.compose.ui.graphics.Color(0xFF1DB954)
                 )
-                Text(
-                    text = "Import from Spotify",
-                    style = MaterialTheme.typography.bodyLarge
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (isSpotifyLoggedIn) {
+                            "Spotify: ${currentSpotifyUser?.displayName ?: "Connected"}"
+                        } else {
+                            "Connect Spotify Account"
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = if (isSpotifyLoggedIn) {
+                            "Playlists, Liked Songs & Genre Mixes (Ad-Free)"
+                        } else {
+                            "Sync playlists & 120+ genre seeds ad-free"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Icon(
+                    painter = rememberVectorPainter(Icons.Rounded.NavigateNext),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

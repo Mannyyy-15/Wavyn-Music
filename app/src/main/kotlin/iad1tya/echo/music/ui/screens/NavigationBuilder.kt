@@ -204,6 +204,26 @@ fun NavGraphBuilder.navigationBuilder(
     composable("spotify_import") {
         SpotifyImportScreen(navController)
     }
+    composable("spotify_login") {
+        iad1tya.echo.music.ui.screens.spotify.SpotifyLoginScreen(navController)
+    }
+    composable("spotify_hub") {
+        iad1tya.echo.music.ui.screens.spotify.SpotifyHubScreen(navController)
+    }
+    composable(
+        route = "spotify_playlist/{playlistId}",
+        arguments = listOf(
+            navArgument("playlistId") {
+                type = NavType.StringType
+            }
+        )
+    ) {
+        iad1tya.echo.music.ui.screens.spotify.SpotifyPlaylistViewScreen(
+            playlistId = it.arguments?.getString("playlistId") ?: "",
+            navController = navController
+        )
+    }
+
     composable("mood_and_genres") {
         MoodAndGenresScreen(navController, scrollBehavior)
     }
