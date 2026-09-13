@@ -114,7 +114,7 @@ fun SpotifyHubScreen(
                             )
                         )
                         SpotifyTrackResolver.prefetchUpcoming(scope, recommended, startIndex = 1, count = 5)
-                        Toast.makeText(context, "Playing $genre radio (Ad-Free)!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Playing $genre radio!", Toast.LENGTH_SHORT).show()
                     } else {
                         Toast.makeText(context, "Could not match $genre track", Toast.LENGTH_SHORT).show()
                     }
@@ -283,7 +283,7 @@ fun SpotifyHubScreen(
                                             color = Color(0xFF1DB954).copy(alpha = 0.2f)
                                         ) {
                                             Text(
-                                                text = "AD-FREE HYBRID",
+                                                text = "SPOTIFY",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = Color(0xFF1DB954),
                                                 fontWeight = FontWeight.Bold,
@@ -471,7 +471,7 @@ fun SpotifyHubScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "Tap any genre for an instant ad-free radio mix",
+                                    text = "Tap any genre for an instant radio mix",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

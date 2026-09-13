@@ -382,9 +382,9 @@ fun AccountSettings(
                     )
                     Text(
                         text = if (isSpotifyLoggedIn) {
-                            "Playlists, Liked Songs & Genre Mixes (Ad-Free)"
+                            "Playlists, Liked Songs & Genre Mixes"
                         } else {
-                            "Sync playlists & 120+ genre seeds ad-free"
+                            "Sync playlists & 120+ genre seeds"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

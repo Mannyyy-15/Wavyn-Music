@@ -64,11 +64,21 @@ object SpotifyAuthManager {
         try {
             val prefs = context.dataStore.data.first()
             val spDc = prefs[SpotifySpDcKey]
-            val userId = prefs[SpotifyUserIdKey]
-            val userName = prefs[SpotifyUserNameKey]
+            var userId = prefs[SpotifyUserIdKey]
+            var userName = prefs[SpotifyUserNameKey]
             val userEmail = prefs[SpotifyUserEmailKey]
             val userAvatar = prefs[SpotifyUserAvatarKey]
             val userProduct = prefs[SpotifyUserProductKey]
+
+            // Purge stale/hardcoded dummy profile from previous test builds
+            if (userName?.equals("Micael Widell", ignoreCase = true) == true || userId == "me" || userId == "micaelwidell") {
+                context.dataStore.edit { editPrefs ->
+                    editPrefs.remove(SpotifyUserNameKey)
+                    editPrefs.remove(SpotifyUserIdKey)
+                }
+                userName = null
+                userId = null
+            }
 
             if (!spDc.isNullOrBlank()) {
                 _isLoggedIn.value = true
@@ -78,8 +88,10 @@ object SpotifyAuthManager {
                         displayName = userName,
                         email = userEmail,
                         avatarUrl = userAvatar,
-                        product = userProduct
+                        product = userProduct ?: "connected"
                     )
+                } else {
+                    _currentUser.value = null
                 }
                 // Sync library & refresh profile in background
                 syncLibrary()
@@ -107,10 +119,10 @@ object SpotifyAuthManager {
             val (accessToken, expirationTimestamp) = tokenResult
             val user = SpotifyApiService.getMe(accessToken) ?: SpotifyUser(
                 id = "spotify_user",
-                displayName = "Spotify User",
+                displayName = "Spotify",
                 email = null,
                 avatarUrl = null,
-                product = "free"
+                product = "connected"
             )
 
             // Save to DataStore
@@ -121,15 +133,17 @@ object SpotifyAuthManager {
                 }
                 prefs[SpotifyAccessTokenKey] = accessToken
                 prefs[SpotifyTokenExpirationKey] = expirationTimestamp
-                prefs[SpotifyUserIdKey] = user.id
-                prefs[SpotifyUserNameKey] = user.displayName
-                user.email?.let { prefs[SpotifyUserEmailKey] = it }
-                user.avatarUrl?.let { prefs[SpotifyUserAvatarKey] = it }
-                user.product?.let { prefs[SpotifyUserProductKey] = it }
+                if (!user.displayName.equals("Micael Widell", ignoreCase = true) && user.id != "me" && user.id != "micaelwidell") {
+                    prefs[SpotifyUserIdKey] = user.id
+                    prefs[SpotifyUserNameKey] = user.displayName
+                    user.email?.let { prefs[SpotifyUserEmailKey] = it }
+                    user.avatarUrl?.let { prefs[SpotifyUserAvatarKey] = it }
+                    user.product?.let { prefs[SpotifyUserProductKey] = it }
+                    _currentUser.value = user
+                }
             }
 
             _isLoggedIn.value = true
-            _currentUser.value = user
             
             // Sync user library in background
             scope.launch {
@@ -352,6 +366,10 @@ object SpotifyAuthManager {
     }
 
     private suspend fun updateSavedUser(user: SpotifyUser) {
+        if (user.displayName.equals("Micael Widell", ignoreCase = true) || user.id == "me" || user.id == "micaelwidell") {
+            Log.w(TAG, "Ignoring stale placeholder user: ${user.displayName}")
+            return
+        }
         _currentUser.value = user
         context.dataStore.edit { prefs ->
             prefs[SpotifyUserIdKey] = user.id

@@ -431,10 +431,10 @@ fun HomeScreen(
             }
 
             if (selectedChip == null) {
-                if (isSpotifyLoggedIn && spotifyPlaylists.isNotEmpty()) {
+                if (isSpotifyLoggedIn && (spotifyPlaylists.isNotEmpty() || spotifyLikedCount > 0)) {
                     item(key = "spotify_section_title") {
                         NavigationTitle(
-                            title = "From Your Spotify",
+                            title = "Spotify",
                             action = {
                                 androidx.compose.material3.TextButton(
                                     onClick = { navController.navigate("spotify_hub") },
@@ -595,7 +595,7 @@ fun HomeScreen(
                                             }
                                         }
                                         Text(
-                                            text = if (sp.trackCount > 0) "${sp.trackCount} songs" else if (!sp.ownerName.isNullOrBlank()) "By ${sp.ownerName}" else "Spotify",
+                                            text = if (sp.trackCount > 0) "${sp.trackCount} songs" else if (!sp.ownerName.isNullOrBlank() && !sp.ownerName.equals("Micael Widell", ignoreCase = true) && sp.ownerName != "me") "By ${sp.ownerName}" else "Spotify",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 1,

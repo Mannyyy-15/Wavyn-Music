@@ -227,7 +227,7 @@ fun SpotifyPlaylistViewScreen(
                                 )
                                 Spacer(Modifier.width(6.dp))
                                 Text(
-                                    text = "Play All (Ad-Free)",
+                                    text = "Play All",
                                     fontWeight = FontWeight.Bold
                                 )
                             }

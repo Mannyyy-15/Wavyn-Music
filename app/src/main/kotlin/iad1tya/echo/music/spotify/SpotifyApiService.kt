@@ -20,6 +20,7 @@ object SpotifyApiService {
     private const val SPCLIENT_BASE = "https://spclient.wg.spotify.com"
 
     // Persisted GraphQL Query Hashes from Spotify Web Player bundle
+    private const val HASH_PROFILE_ATTRIBUTES = "08ffb4730af3746e04a8301396f20875dbbce10c75243803091a9274eacc8ac0"
     private const val HASH_LIBRARY_V3 = "390c78e5b951029bad359785e69b07b536a509c581cbcd0aded5e5067f187455"
     private const val HASH_FETCH_LIBRARY_TRACKS = "087278b20b743578a6262c2b0b4bcd20d879c503cc359a2285baf083ef944240"
     private const val HASH_FETCH_PLAYLIST = "86dde7b9d9356e2369414647cf6950cfed96e778e129cfdfc99aea6c1613b3b0"
@@ -104,9 +105,40 @@ object SpotifyApiService {
     }
 
     /**
-     * Fetches current authenticated user's profile using official REST /me endpoint.
+     * Fetches current authenticated user's profile using GraphQL profileAttributes (native Web Player method).
      */
     suspend fun getMe(accessToken: String): SpotifyUser? = withContext(Dispatchers.IO) {
+        // 1. Try GraphQL profileAttributes (official Web Player method for logged-in user)
+        try {
+            val gql = executeGraphQL(accessToken, "profileAttributes", HASH_PROFILE_ATTRIBUTES, JsonObject())
+            if (gql != null && gql.has("data")) {
+                val profile = gql.getAsJsonObject("data")?.getAsJsonObject("me")?.getAsJsonObject("profile")
+                if (profile != null) {
+                    val username = profile.get("username")?.asString
+                        ?: profile.get("uri")?.asString?.removePrefix("spotify:user:") ?: ""
+                    val name = profile.get("name")?.asString ?: username
+                    var avatarUrl: String? = null
+                    val sources = profile.getAsJsonObject("avatar")?.getAsJsonArray("sources")
+                    if (sources != null && sources.size() > 0) {
+                        avatarUrl = sources.get(0).asJsonObject.get("url")?.asString
+                    }
+                    if (username.isNotBlank() && !name.equals("Micael Widell", ignoreCase = true) && username != "me") {
+                        Log.i(TAG, "getMe resolved via GraphQL profileAttributes: $name ($username)")
+                        return@withContext SpotifyUser(
+                            id = username,
+                            displayName = name,
+                            email = null,
+                            avatarUrl = resolveSpotifyImageUrl(avatarUrl),
+                            product = "connected"
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "getMe profileAttributes exception: ${e.message}")
+        }
+
+        // 2. Fallback to REST /me
         try {
             val request = buildRequest("$BASE_URL/me", accessToken)
             val response = client.newCall(request).execute()
@@ -124,15 +156,17 @@ object SpotifyApiService {
                     images.get(0).asJsonObject.get("url")?.asString
                 } else null
 
-                Log.i(TAG, "getMe resolved via REST: $displayName ($id)")
-                return@withContext SpotifyUser(
-                    id = id,
-                    displayName = displayName,
-                    email = email,
-                    avatarUrl = resolveSpotifyImageUrl(avatarUrl),
-                    product = product,
-                    followersCount = followers
-                )
+                if (!displayName.equals("Micael Widell", ignoreCase = true) && id != "me") {
+                    Log.i(TAG, "getMe resolved via REST: $displayName ($id)")
+                    return@withContext SpotifyUser(
+                        id = id,
+                        displayName = displayName,
+                        email = email,
+                        avatarUrl = resolveSpotifyImageUrl(avatarUrl),
+                        product = product,
+                        followersCount = followers
+                    )
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "getMe REST exception: ${e.message}", e)
@@ -190,7 +224,10 @@ object SpotifyApiService {
                             var ownerName: String? = null
                             val ownerV2 = dataObj.getAsJsonObject("ownerV2")?.getAsJsonObject("data")
                             if (ownerV2 != null) {
-                                ownerName = ownerV2.get("name")?.asString ?: ownerV2.get("username")?.asString
+                                val rawOwner = ownerV2.get("name")?.asString ?: ownerV2.get("username")?.asString
+                                if (!rawOwner.isNullOrBlank() && !rawOwner.equals("Micael Widell", ignoreCase = true) && rawOwner != "me" && rawOwner != "micaelwidell") {
+                                    ownerName = rawOwner
+                                }
                             }
 
                             // Detect if collaborative: check attributes or collaborative boolean
@@ -252,7 +289,8 @@ object SpotifyApiService {
                             val name = item.get("name")?.asString ?: "Untitled Playlist"
                             val desc = item.get("description")?.asString
                             val tracksCount = item.getAsJsonObject("tracks")?.get("total")?.asInt ?: 0
-                            val owner = item.getAsJsonObject("owner")?.get("display_name")?.asString
+                            val rawOwner = item.getAsJsonObject("owner")?.get("display_name")?.asString
+                            val owner = if (!rawOwner.isNullOrBlank() && !rawOwner.equals("Micael Widell", ignoreCase = true) && rawOwner != "me" && rawOwner != "micaelwidell") rawOwner else null
                             val isCollab = item.get("collaborative")?.asBoolean ?: false
 
                             val images = item.getAsJsonArray("images")
@@ -323,10 +361,12 @@ object SpotifyApiService {
                         val typename = trackData.get("__typename")?.asString ?: ""
                         if (typename != "Track" && typename != "Episode" && typename.isNotBlank()) continue
 
-                        val uri = trackData.get("uri")?.asString ?: continue
+                        val uri = trackData.get("uri")?.asString ?: itemV2.get("_uri")?.asString ?: continue
                         val id = uri.removePrefix("spotify:track:").removePrefix("spotify:episode:").trim()
                         val name = trackData.get("name")?.asString ?: continue
-                        val durationMs = trackData.getAsJsonObject("trackDuration")?.get("totalMilliseconds")?.asLong ?: 0L
+                        val durationMs = trackData.getAsJsonObject("trackDuration")?.get("totalMilliseconds")?.asLong
+                            ?: trackData.getAsJsonObject("duration")?.get("totalMilliseconds")?.asLong
+                            ?: trackData.get("duration_ms")?.asLong ?: 0L
 
                         val artists = mutableListOf<String>()
                         val artistsItems = trackData.getAsJsonObject("artists")?.getAsJsonArray("items")
@@ -415,10 +455,15 @@ object SpotifyApiService {
                         val trackWrapper = itemWrapper.getAsJsonObject("track") ?: continue
                         val trackData = trackWrapper.getAsJsonObject("data") ?: trackWrapper
 
-                        val uri = trackData.get("uri")?.asString ?: trackData.get("id")?.asString ?: continue
-                        val id = uri.removePrefix("spotify:track:").trim()
+                        val uri = trackWrapper.get("_uri")?.asString
+                            ?: trackWrapper.get("uri")?.asString
+                            ?: trackData.get("uri")?.asString
+                            ?: trackData.get("id")?.asString
+                            ?: continue
+                        val id = uri.removePrefix("spotify:track:").removePrefix("spotify:episode:").trim()
                         val name = trackData.get("name")?.asString ?: continue
-                        val durationMs = trackData.getAsJsonObject("trackDuration")?.get("totalMilliseconds")?.asLong
+                        val durationMs = trackData.getAsJsonObject("duration")?.get("totalMilliseconds")?.asLong
+                            ?: trackData.getAsJsonObject("trackDuration")?.get("totalMilliseconds")?.asLong
                             ?: trackData.get("duration_ms")?.asLong ?: 0L
 
                         val artists = mutableListOf<String>()

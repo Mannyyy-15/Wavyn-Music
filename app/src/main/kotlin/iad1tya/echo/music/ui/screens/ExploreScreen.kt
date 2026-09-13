@@ -445,7 +445,7 @@ fun ExploreScreen(
                                 text = if (isSpotifyLoggedIn) {
                                     "Your playlists, liked songs & 120+ genre radios"
                                 } else {
-                                    "Enjoy your Spotify playlists & recommendations ad-free"
+                                    "Access your Spotify playlists, liked tracks & recommendations"
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant

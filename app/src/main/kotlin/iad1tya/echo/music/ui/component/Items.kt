@@ -756,11 +756,14 @@ fun SpotifyPlaylistItem(
 ) = ListItem(
     title = playlist.name,
     subtitle = if (playlist.isCollaborative) {
-        "Collab • ${playlist.ownerName ?: "Spotify"}"
+        val owner = if (!playlist.ownerName.isNullOrBlank() && !playlist.ownerName.equals("Micael Widell", ignoreCase = true) && playlist.ownerName != "me") playlist.ownerName else "Spotify"
+        "Collab • $owner"
     } else if (playlist.trackCount > 0) {
         "${playlist.trackCount} songs"
+    } else if (!playlist.ownerName.isNullOrBlank() && !playlist.ownerName.equals("Micael Widell", ignoreCase = true) && playlist.ownerName != "me") {
+        "By ${playlist.ownerName}"
     } else {
-        playlist.ownerName ?: "Spotify Playlist"
+        "Spotify Playlist"
     },
     badges = {
         if (playlist.isCollaborative) {
@@ -828,11 +831,14 @@ fun SpotifyPlaylistGridItem(
     subtitle = {
         Text(
             text = if (playlist.isCollaborative) {
-                "Collab • ${playlist.ownerName ?: "Spotify"}"
+                val owner = if (!playlist.ownerName.isNullOrBlank() && !playlist.ownerName.equals("Micael Widell", ignoreCase = true) && playlist.ownerName != "me") playlist.ownerName else "Spotify"
+                "Collab • $owner"
             } else if (playlist.trackCount > 0) {
                 "${playlist.trackCount} songs"
+            } else if (!playlist.ownerName.isNullOrBlank() && !playlist.ownerName.equals("Micael Widell", ignoreCase = true) && playlist.ownerName != "me") {
+                "By ${playlist.ownerName}"
             } else {
-                playlist.ownerName ?: "Spotify Playlist"
+                "Spotify Playlist"
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.secondary,
