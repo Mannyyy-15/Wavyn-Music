@@ -19,10 +19,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.border
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.rounded.NavigateNext
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ButtonDefaults
@@ -188,12 +190,25 @@ fun AccountSettings(
                     )
                     .padding(horizontal = 18.dp, vertical = 14.dp)
             ) {
-            if (isLoggedIn && accountImageUrl != null) {
+            val resolvedAvatarUrl = when {
+                isSpotifyLoggedIn && !currentSpotifyUser?.avatarUrl.isNullOrBlank() -> currentSpotifyUser?.avatarUrl
+                isLoggedIn && !accountImageUrl.isNullOrBlank() -> accountImageUrl
+                else -> null
+            }
+
+            if (resolvedAvatarUrl != null) {
                 AsyncImage(
-                    model = accountImageUrl,
+                    model = resolvedAvatarUrl,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(40.dp).clip(CircleShape)
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .border(
+                            width = 1.5.dp,
+                            color = if (isSpotifyLoggedIn) androidx.compose.ui.graphics.Color(0xFF1DB954) else MaterialTheme.colorScheme.primary,
+                            shape = CircleShape
+                        )
                 )
             } else {
                 Icon(
@@ -207,16 +222,36 @@ fun AccountSettings(
             Spacer(Modifier.width(12.dp))
 
             Column(Modifier.weight(1f)) {
+                val headerName = when {
+                    isSpotifyLoggedIn && !currentSpotifyUser?.displayName.isNullOrBlank() && !currentSpotifyUser?.displayName.equals("Spotify User", ignoreCase = true) -> currentSpotifyUser?.displayName!!
+                    isLoggedIn && accountName.isNotBlank() -> accountName
+                    isSpotifyLoggedIn -> "Spotify User"
+                    else -> "Google Login"
+                }
                 Text(
-                    text = if (isLoggedIn) accountName else "Google Login",
+                    text = headerName,
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.padding(start = 5.dp)
                 )
-                // Show account count if multiple accounts
+                // Show account count if multiple accounts or connection status
                 if (isLoggedIn && allAccounts.size > 1) {
                     Text(
                         text = stringResource(R.string.accounts_count, allAccounts.size),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 5.dp)
+                    )
+                } else if (isSpotifyLoggedIn && isLoggedIn) {
+                    Text(
+                        text = "Spotify & Google connected",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 5.dp)
+                    )
+                } else if (isSpotifyLoggedIn) {
+                    Text(
+                        text = "Spotify connected",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 5.dp)
@@ -365,12 +400,24 @@ fun AccountSettings(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_spotify),
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = androidx.compose.ui.graphics.Color(0xFF1DB954)
-                )
+                if (isSpotifyLoggedIn && !currentSpotifyUser?.avatarUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = currentSpotifyUser?.avatarUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .border(1.5.dp, androidx.compose.ui.graphics.Color(0xFF1DB954), CircleShape)
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_spotify),
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = androidx.compose.ui.graphics.Color(0xFF1DB954)
+                    )
+                }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = if (isSpotifyLoggedIn) {
@@ -392,7 +439,7 @@ fun AccountSettings(
                     )
                 }
                 Icon(
-                    painter = rememberVectorPainter(Icons.Rounded.NavigateNext),
+                    painter = rememberVectorPainter(Icons.AutoMirrored.Rounded.NavigateNext),
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant

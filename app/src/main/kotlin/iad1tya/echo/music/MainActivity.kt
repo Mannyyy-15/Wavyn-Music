@@ -46,6 +46,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -116,6 +117,7 @@ import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -165,7 +167,6 @@ import com.echo.innertube.models.WatchEndpoint
 import iad1tya.echo.music.constants.AppBarHeight
 import iad1tya.echo.music.constants.AppLanguageKey
 import iad1tya.echo.music.constants.CheckForUpdatesKey
-import iad1tya.echo.music.constants.LastImportantNoticeVersionKey
 import iad1tya.echo.music.constants.LastLibSongSyncKey
 import iad1tya.echo.music.constants.LastLikeSongSyncKey
 import iad1tya.echo.music.constants.DarkModeKey
@@ -200,6 +201,7 @@ import iad1tya.echo.music.playback.MusicService
 import iad1tya.echo.music.playback.MusicService.MusicBinder
 import iad1tya.echo.music.playback.PlayerConnection
 import iad1tya.echo.music.playback.queues.YouTubeQueue
+import iad1tya.echo.music.spotify.SpotifyAuthManager
 import iad1tya.echo.music.ui.component.AccountSettingsDialog
 import iad1tya.echo.music.ui.screens.settings.AccountSettings
 import iad1tya.echo.music.ui.component.AppNavigationBar
@@ -208,7 +210,6 @@ import iad1tya.echo.music.ui.component.BottomSheetPage
 import iad1tya.echo.music.ui.component.FloatingNavigationToolbar
 import iad1tya.echo.music.ui.component.FluidSlidingNavigationBar
 import iad1tya.echo.music.ui.component.IconButton
-import iad1tya.echo.music.ui.component.ImportantNoticeDialog
 import iad1tya.echo.music.ui.component.LocalBottomSheetPageState
 import iad1tya.echo.music.ui.component.LocalMenuState
 import iad1tya.echo.music.ui.component.TopSearch
@@ -615,6 +616,17 @@ class MainActivity : ComponentActivity() {
 
                     val homeViewModel: HomeViewModel = hiltViewModel()
                     val accountImageUrl by homeViewModel.accountImageUrl.collectAsState()
+                    val isSpotifyLoggedIn by SpotifyAuthManager.isLoggedIn.collectAsState()
+                    val currentSpotifyUser by SpotifyAuthManager.currentUser.collectAsState()
+                    val activeAvatarUrl = remember(isSpotifyLoggedIn, currentSpotifyUser, accountImageUrl) {
+                        if (isSpotifyLoggedIn && !currentSpotifyUser?.avatarUrl.isNullOrBlank()) {
+                            currentSpotifyUser?.avatarUrl
+                        } else if (!accountImageUrl.isNullOrBlank()) {
+                            accountImageUrl
+                        } else {
+                            null
+                        }
+                    }
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val (previousTab, setPreviousTab) = rememberSaveable { mutableStateOf("home") }
                     var showErrorLogDialog by rememberSaveable { mutableStateOf(false) }
@@ -1140,12 +1152,26 @@ class MainActivity : ComponentActivity() {
                                             TopAppBar(
                                                 title = {
                                                     if (navBackStackEntry?.destination?.route == Screens.Home.route) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.wavyn_logo_white),
-                                                            contentDescription = null,
-                                                            tint = Color.Unspecified,
-                                                            modifier = Modifier.size(52.dp)
-                                                        )
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                                        ) {
+                                                            Icon(
+                                                                painter = painterResource(R.drawable.wavyn_logo_white),
+                                                                contentDescription = null,
+                                                                tint = Color.Unspecified,
+                                                                modifier = Modifier.size(36.dp)
+                                                            )
+                                                            Text(
+                                                                text = "Wavyn",
+                                                                style = MaterialTheme.typography.titleLarge.copy(
+                                                                    fontFamily = FontFamily(Font(R.font.zalando_sans_expanded)),
+                                                                    fontWeight = FontWeight.Bold,
+                                                                    fontSize = 24.sp
+                                                                ),
+                                                                color = MaterialTheme.colorScheme.onSurface
+                                                            )
+                                                        }
                                                     } else {
                                                         Text(
                                                             text = currentTitleRes?.let { stringResource(it) } ?: "",
@@ -1158,30 +1184,79 @@ class MainActivity : ComponentActivity() {
                                                     }
                                                 },
                                                 actions = {
-                                                    IconButton(onClick = { showAccountSidebar = true }) {
-                                                        BadgedBox(
-                                                            badge = {
-                                                                if (latestVersionName != BuildConfig.VERSION_NAME) {
-                                                                    Badge(
-                                                                        containerColor = MaterialTheme.colorScheme.error
-                                                                    )
-                                                                }
-                                                            }
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                                        modifier = Modifier.padding(end = 8.dp)
+                                                    ) {
+                                                        // Notification Button
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(38.dp)
+                                                                .clip(CircleShape)
+                                                                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                                                                .clickable {
+                                                                    navController.navigate("settings/updater")
+                                                                },
+                                                            contentAlignment = Alignment.Center
                                                         ) {
-                                                            if (accountImageUrl != null) {
+                                                            BadgedBox(
+                                                                badge = {
+                                                                    if (latestVersionName != BuildConfig.VERSION_NAME) {
+                                                                        Badge(
+                                                                            containerColor = MaterialTheme.colorScheme.error,
+                                                                            modifier = Modifier.size(8.dp)
+                                                                        )
+                                                                    }
+                                                                }
+                                                            ) {
+                                                                Icon(
+                                                                    painter = painterResource(R.drawable.notification),
+                                                                    contentDescription = "Notifications",
+                                                                    tint = MaterialTheme.colorScheme.onSurface,
+                                                                    modifier = Modifier.size(20.dp)
+                                                                )
+                                                            }
+                                                        }
+
+                                                        // Account Avatar Button
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(38.dp)
+                                                                .clip(CircleShape)
+                                                                .border(
+                                                                    width = 2.dp,
+                                                                    color = MaterialTheme.colorScheme.primary,
+                                                                    shape = CircleShape
+                                                                )
+                                                                .clickable {
+                                                                    showAccountSidebar = true
+                                                                },
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            if (activeAvatarUrl != null) {
                                                                 AsyncImage(
-                                                                    model = accountImageUrl,
+                                                                    model = activeAvatarUrl,
                                                                     contentDescription = stringResource(R.string.account),
+                                                                    contentScale = ContentScale.Crop,
                                                                     modifier = Modifier
-                                                                        .size(24.dp)
+                                                                        .fillMaxSize()
                                                                         .clip(CircleShape)
                                                                 )
                                                             } else {
-                                                                Icon(
-                                                                    painter = painterResource(R.drawable.account),
-                                                                    contentDescription = stringResource(R.string.account),
-                                                                    modifier = Modifier.size(24.dp)
-                                                                )
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .fillMaxSize()
+                                                                        .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape),
+                                                                    contentAlignment = Alignment.Center
+                                                                ) {
+                                                                    Icon(
+                                                                        painter = painterResource(R.drawable.account),
+                                                                        contentDescription = stringResource(R.string.account),
+                                                                        tint = MaterialTheme.colorScheme.onSurface,
+                                                                        modifier = Modifier.size(20.dp)
+                                                                    )
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -1927,20 +2002,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    val lastNoticeVersion by rememberPreference(LastImportantNoticeVersionKey, defaultValue = "")
-                    val showNoticeDialog = lastNoticeVersion != BuildConfig.VERSION_NAME
 
-                    if (showNoticeDialog) {
-                        ImportantNoticeDialog(
-                            onDismiss = {
-                                lifecycleScope.launch(Dispatchers.IO) {
-                                    dataStore.edit {
-                                        it[LastImportantNoticeVersionKey] = BuildConfig.VERSION_NAME
-                                    }
-                                }
-                            }
-                        )
-                    }
 
                     if (showErrorLogDialog) {
                         iad1tya.echo.music.ui.component.ErrorLogDialog(
