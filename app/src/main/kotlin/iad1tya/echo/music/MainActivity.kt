@@ -204,6 +204,7 @@ import iad1tya.echo.music.playback.queues.YouTubeQueue
 import iad1tya.echo.music.spotify.SpotifyAuthManager
 import iad1tya.echo.music.ui.component.AccountSettingsDialog
 import iad1tya.echo.music.ui.screens.settings.AccountSettings
+import iad1tya.echo.music.ui.component.AnimatedMeshBackground
 import iad1tya.echo.music.ui.component.AppNavigationBar
 import iad1tya.echo.music.ui.component.BottomSheetMenu
 import iad1tya.echo.music.ui.component.BottomSheetPage
@@ -596,13 +597,9 @@ class MainActivity : ComponentActivity() {
                 useSystemFont = useSystemFont,
             ) {
                 BoxWithConstraints(
-                    modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            MaterialTheme.colorScheme.surface
-                        )
+                    modifier = Modifier.fillMaxSize()
                 ) {
+                    AnimatedMeshBackground(pureBlack = pureBlack)
                     val context = androidx.compose.ui.platform.LocalContext.current
                     val focusManager = LocalFocusManager.current
                     val density = LocalDensity.current
@@ -843,15 +840,8 @@ class MainActivity : ComponentActivity() {
                         !isFindScreen &&
                         !isSettingsScreen &&
                         !isListenTogetherScreen
-                    val floatingBarsBottomPadding = if (oldNavbarStyle) 0.dp else if (slimNav) 8.dp else 12.dp
-                    val navVisibleHeight =
-                        if (oldNavbarStyle) {
-                            if (slimNav) SlimNavBarHeight else NavigationBarHeight
-                        } else {
-                            if (slimNav) SlimFloatingToolbarHeight else FloatingToolbarHeight
-                        }
-
-                    val livingPlayerHeight = 56.dp
+                    val floatingBarsBottomPadding = 0.dp
+                    val navVisibleHeight = if (slimNav) 54.dp else 62.dp
 
                     val targetNavBarHeight = navVisibleHeight
 
@@ -864,32 +854,17 @@ class MainActivity : ComponentActivity() {
                     val playerBottomSheetState =
                         rememberBottomSheetState(
                             dismissedBound = 0.dp,
-                            collapsedBound = if (oldNavbarStyle) {
+                            collapsedBound =
                                 bottomInset +
-                                    (if (!showRail && shouldShowNavigationBar) (navVisibleHeight + floatingBarsBottomPadding) else 0.dp) +
-                                    (if (shouldShowMiniPlayer && useNewMiniPlayerDesign) MiniPlayerBottomSpacing else 0.dp) +
-                                    (if (shouldShowMiniPlayer) MiniPlayerHeight else 0.dp)
-                            } else {
-                                0.dp
-                            },
+                                    (if (!showRail && shouldShowNavigationBar) (navVisibleHeight + MiniPlayerBottomSpacing) else 0.dp) +
+                                    (if (shouldShowMiniPlayer) MiniPlayerHeight else 0.dp),
                             expandedBound = maxHeight,
                         )
 
-                    val hasActiveSong = shouldShowMiniPlayer && !playerBottomSheetState.isDismissed
-
-                    val currentDockHeight by animateDpAsState(
-                        targetValue = navVisibleHeight + (if (hasActiveSong && !oldNavbarStyle) livingPlayerHeight else 0.dp),
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessMediumLow
-                        ),
-                        label = "CurrentDockHeight"
-                    )
-
-                    val getNavPadding: () -> Dp = remember(shouldShowNavigationBar, showRail, currentDockHeight) {
+                    val getNavPadding: () -> Dp = remember(shouldShowNavigationBar, showRail, navVisibleHeight) {
                         {
                             if (shouldShowNavigationBar && !showRail) {
-                                currentDockHeight + floatingBarsBottomPadding
+                                navVisibleHeight
                             } else {
                                 0.dp
                             }
@@ -901,15 +876,14 @@ class MainActivity : ComponentActivity() {
                         shouldShowNavigationBar,
                         playerBottomSheetState.isDismissed,
                         showRail,
-                        hasActiveSong,
-                        oldNavbarStyle,
-                        currentDockHeight,
+                        shouldShowMiniPlayer,
+                        navVisibleHeight,
                     ) {
                         var bottom = bottomInset
                         if (shouldShowNavigationBar && !showRail) {
-                            bottom += getNavPadding()
+                            bottom += navVisibleHeight
                         }
-                        if (oldNavbarStyle && !playerBottomSheetState.isDismissed && shouldShowMiniPlayer) {
+                        if (!playerBottomSheetState.isDismissed && shouldShowMiniPlayer) {
                             bottom += MiniPlayerHeight + MiniPlayerBottomSpacing
                         }
                         windowsInsets
@@ -1037,7 +1011,7 @@ class MainActivity : ComponentActivity() {
 
                     LaunchedEffect(navBackStackEntry) {
                         shouldShowTopBar =
-                            !active && navBackStackEntry?.destination?.route in topLevelScreens && navBackStackEntry?.destination?.route != "settings"
+                            !active && navBackStackEntry?.destination?.route in topLevelScreens && navBackStackEntry?.destination?.route != "settings" && navBackStackEntry?.destination?.route != Screens.Search.route
                     }
 
                     val coroutineScope = rememberCoroutineScope()
@@ -1524,10 +1498,18 @@ class MainActivity : ComponentActivity() {
                                                 navController = navController,
                                                 pureBlack = pureBlack
                                             )
-                                            val navSlideDistance = bottomInset + floatingBarsBottomPadding + currentDockHeight
+                                            val navSlideDistance = bottomInset + navVisibleHeight
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(insetBg)
+                                                    .fillMaxWidth()
+                                                    .align(Alignment.BottomCenter)
+                                                    .height(bottomInsetDp)
+                                            )
                                             Box(
                                                 modifier = Modifier
                                                     .align(Alignment.BottomCenter)
+                                                    .fillMaxWidth()
                                                     .height(navSlideDistance)
                                                     .offset {
                                                         if (navigationBarHeight == 0.dp) {
@@ -1607,9 +1589,6 @@ class MainActivity : ComponentActivity() {
                                                                 restoreState = true
                                                             }
                                                         }
-                                                        if (screen.route == Screens.Search.route) {
-                                                            onActiveChange(true)
-                                                        }
                                                     }
                                                 }
 
@@ -1620,7 +1599,8 @@ class MainActivity : ComponentActivity() {
                                                         pureBlack = pureBlack,
                                                         modifier = Modifier
                                                             .align(Alignment.BottomCenter)
-                                                            .height(bottomInset + navVisibleHeight),
+                                                            .fillMaxWidth()
+                                                            .height(navSlideDistance),
                                                         isSelected = isNavItemSelected,
                                                         onItemClick = onNavItemClick,
                                                         onItemLongClick = { screen ->
@@ -1635,15 +1615,11 @@ class MainActivity : ComponentActivity() {
                                                         currentRoute = navBackStackEntry?.destination?.route ?: "",
                                                         pureBlack = pureBlack,
                                                         slim = slimNav,
+                                                        bottomInsetDp = bottomInset,
                                                         modifier = Modifier
                                                             .align(Alignment.BottomCenter)
-                                                            .padding(
-                                                                start = 16.dp,
-                                                                end = 16.dp,
-                                                                bottom = bottomInset + floatingBarsBottomPadding,
-                                                            )
                                                             .fillMaxWidth()
-                                                            .height(currentDockHeight),
+                                                            .height(navSlideDistance),
                                                         onTabSelected = { screen ->
                                                             onNavItemClick(screen, isNavItemSelected(screen))
                                                         },
@@ -1652,20 +1628,9 @@ class MainActivity : ComponentActivity() {
                                                                 showErrorLogDialog = true
                                                             }
                                                         },
-                                                        onExpandPlayer = {
-                                                            playerBottomSheetState.expandSoft()
-                                                        },
                                                     )
                                                 }
                                             }
-
-                                            Box(
-                                                modifier = Modifier
-                                                    .background(insetBg)
-                                                    .fillMaxWidth()
-                                                    .align(Alignment.BottomCenter)
-                                                    .height(bottomInsetDp)
-                                            )
                                         }
                                     } else {
                                         BottomSheetPlayer(
@@ -1770,10 +1735,6 @@ class MainActivity : ComponentActivity() {
                                                                 launchSingleTop = true
                                                                 restoreState = true
                                                             }
-                                                        }
-                                                        // Open search bar when navigating to search
-                                                        if (screen.route == Screens.Search.route) {
-                                                            onActiveChange(true)
                                                         }
                                                     }
                                                 },
@@ -1918,6 +1879,9 @@ class MainActivity : ComponentActivity() {
                                                 coroutineScope.launch {
                                                     playerBottomSheetState.expandSoft()
                                                 }
+                                            },
+                                            onSearchBarClick = {
+                                                onActiveChange(true)
                                             }
                                         )
                                     }

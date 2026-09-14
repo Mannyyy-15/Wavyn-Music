@@ -786,17 +786,11 @@ fun BottomSheetPlayer(
             playerConnection.player.clearMediaItems()
         },
         collapsedContent = {
-            val oldNavbarStyle by rememberPreference(iad1tya.echo.music.constants.OldNavbarStyleKey, false)
-            val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-            val isTabletLandscape = configuration.screenWidthDp >= 600 &&
-                configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-            if (oldNavbarStyle || isTabletLandscape) {
-                MiniPlayer(
-                    position = position,
-                    duration = duration,
-                    pureBlack = pureBlack,
-                )
-            }
+            MiniPlayer(
+                position = position,
+                duration = duration,
+                pureBlack = pureBlack,
+            )
         },
     ) {
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->

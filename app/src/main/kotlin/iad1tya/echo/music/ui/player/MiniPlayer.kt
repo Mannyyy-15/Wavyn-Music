@@ -346,7 +346,7 @@ private fun NewMiniPlayer(
             .fillMaxWidth()
             .height(MiniPlayerHeight)
             .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-            .padding(horizontal = if (oldNavbarStyle) 8.dp else 12.dp)
+            .padding(horizontal = 8.dp)
             .let { baseModifier ->
                 if (swipeThumbnail) {
                     baseModifier.pointerInput(Unit) {
@@ -413,43 +413,38 @@ private fun NewMiniPlayer(
                 }
             }
     ) {
-        // Dynamic Island Capsule
+        // Floating Mini Player Card (Spotify & Apple Music Style)
         Box(
             modifier = Modifier
                 .then(
                     if (isTabletLandscape) {
                         Modifier
-                            .width(440.dp)
+                            .width(460.dp)
                             .align(Alignment.CenterEnd)
-                    } else if (oldNavbarStyle) {
-                        Modifier
-                            .fillMaxWidth(0.94f)
-                            .align(Alignment.Center)
                     } else {
                         Modifier
-                            .fillMaxWidth(DynamicIslandWidthFraction)
-                            .widthIn(max = DynamicIslandMaxWidth)
+                            .fillMaxWidth()
                             .align(Alignment.Center)
                     }
                 )
                 .height(58.dp)
                 .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
                 .shadow(
-                    elevation = 14.dp,
-                    shape = RoundedCornerShape(29.dp),
-                    ambientColor = Color.Black.copy(alpha = if (isEffectivelyPureBlack) 0.65f else 0.45f),
-                    spotColor = Color.Black.copy(alpha = if (isEffectivelyPureBlack) 0.80f else 0.60f)
+                    elevation = 8.dp,
+                    shape = RoundedCornerShape(14.dp),
+                    ambientColor = Color.Black.copy(alpha = if (isEffectivelyPureBlack) 0.60f else 0.35f),
+                    spotColor = Color.Black.copy(alpha = if (isEffectivelyPureBlack) 0.75f else 0.50f)
                 )
-                .clip(RoundedCornerShape(29.dp))
+                .clip(RoundedCornerShape(14.dp))
                 .border(
-                    width = 1.dp,
+                    width = 0.8.dp,
                     brush = Brush.verticalGradient(
                         listOf(
-                            Color.White.copy(alpha = if (isEffectivelyPureBlack) 0.18f else 0.28f),
-                            Color.White.copy(alpha = if (isEffectivelyPureBlack) 0.05f else 0.07f)
+                            Color.White.copy(alpha = if (isEffectivelyPureBlack) 0.16f else 0.22f),
+                            Color.White.copy(alpha = if (isEffectivelyPureBlack) 0.04f else 0.06f)
                         )
                     ),
-                    shape = RoundedCornerShape(29.dp)
+                    shape = RoundedCornerShape(14.dp)
                 )
                 .then(
                     if (isEffectivelyPureBlack) {
@@ -477,59 +472,28 @@ private fun NewMiniPlayer(
                     .fillMaxSize()
                     .padding(start = 8.dp, end = 8.dp),
             ) {
-                // Dynamic Album Portal (Disc with breathing aura)
+                // Modern Album Artwork (Rounded Square like Spotify & Apple Music)
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(42.dp)
-                ) {
-                    val infiniteTransition = rememberInfiniteTransition(label = "portalPulse")
-                    val pulseAlpha by infiniteTransition.animateFloat(
-                        initialValue = 0.15f,
-                        targetValue = 0.50f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(1300, easing = FastOutSlowInEasing),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "pulseAlpha"
-                    )
-                    val accentColor = if (gradientColors.isNotEmpty()) {
-                        gradientColors.first()
-                    } else {
-                        MaterialTheme.colorScheme.primary
-                    }
-
-                    if (isPlaying) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(CircleShape)
-                                .background(accentColor.copy(alpha = pulseAlpha))
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(
+                            width = 0.6.dp,
+                            color = Color.White.copy(alpha = 0.20f),
+                            shape = RoundedCornerShape(8.dp)
                         )
-                    }
-
-                    // Circular Album Cover Art
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .border(
-                                width = 1.dp,
-                                color = Color.White.copy(alpha = 0.30f),
-                                shape = CircleShape
-                            )
-                    ) {
-                        mediaMetadata?.let { metadata ->
-                            AsyncImage(
-                                model = metadata.thumbnailUrl,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                error = painterResource(R.drawable.wavyn_logo),
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape)
-                            )
-                        }
+                ) {
+                    mediaMetadata?.let { metadata ->
+                        AsyncImage(
+                            model = metadata.thumbnailUrl,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            error = painterResource(R.drawable.wavyn_logo),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(8.dp))
+                        )
                     }
                 }
 

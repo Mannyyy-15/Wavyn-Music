@@ -167,6 +167,7 @@ fun NavGraphBuilder.navigationBuilder(
     scrollBehavior: TopAppBarScrollBehavior,
     latestVersionName: String,
     onOpenPlayer: () -> Unit,
+    onSearchBarClick: () -> Unit = {},
 ) {
     composable(
         Screens.Home.route,
@@ -178,7 +179,7 @@ fun NavGraphBuilder.navigationBuilder(
         HomeScreen(navController)
     }
     composable(Screens.Search.route) {
-        SearchScreen(navController, onSearchBarClick = { /* Search bar opens automatically via active state */ })
+        SearchScreen(navController, onSearchBarClick = onSearchBarClick)
     }
     composable(Screens.Find.route) {
         FindSongScreen(navController, onOpenPlayer = onOpenPlayer)

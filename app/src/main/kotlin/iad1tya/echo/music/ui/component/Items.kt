@@ -183,7 +183,7 @@ fun ListItem(
 fun GridItem(
     modifier: Modifier = Modifier,
     title: @Composable () -> Unit,
-    subtitle: @Composable () -> Unit,
+    subtitle: (@Composable () -> Unit)? = null,
     badges: @Composable RowScope.() -> Unit = {},
     thumbnailContent: @Composable BoxScope.() -> Unit,
     thumbnailRatio: Float = 1f,
@@ -217,10 +217,12 @@ fun GridItem(
 
         title()
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            badges()
+        if (subtitle != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                badges()
 
-            subtitle()
+                subtitle()
+            }
         }
     }
 }
@@ -1134,6 +1136,7 @@ fun YouTubeGridItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
+    showSubtitle: Boolean = true,
 ) = GridItem(
     title = {
         Text(
@@ -1146,24 +1149,26 @@ fun YouTubeGridItem(
             modifier = Modifier.basicMarquee().fillMaxWidth()
         )
     },
-    subtitle = {
-        val subtitle = when (item) {
-            is SongItem -> joinByBullet(item.artists.joinToString { it.name }, makeTimeString(item.duration?.times(1000L)))
-            is AlbumItem -> joinByBullet(item.artists?.joinToString { it.name }, item.year?.toString())
-            is ArtistItem -> null
-            is PlaylistItem -> joinByBullet(item.author?.name, item.songCountText)
-            is EpisodeItem, is PodcastItem -> null
+    subtitle = if (showSubtitle && item !is PlaylistItem) {
+        {
+            val subtitle = when (item) {
+                is SongItem -> joinByBullet(item.artists.joinToString { it.name }, makeTimeString(item.duration?.times(1000L)))
+                is AlbumItem -> joinByBullet(item.artists?.joinToString { it.name }, item.year?.toString())
+                is ArtistItem -> null
+                is PlaylistItem -> null
+                is EpisodeItem, is PodcastItem -> null
+            }
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.secondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
-        if (subtitle != null) {
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    },
+    } else null,
     badges = badges,
     thumbnailContent = {
         val database = LocalDatabase.current
