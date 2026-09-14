@@ -240,7 +240,7 @@ fun BottomSheetPlayer(
         key = PlayerBackgroundStyleKey,
         defaultValue = PlayerBackgroundStyle.FLUID_MESH
     )
-    val canvasBackgroundFullscreen by rememberPreference(
+    var canvasBackgroundFullscreen by rememberPreference(
         key = CanvasBackgroundFullscreenKey,
         defaultValue = true
     )
@@ -1170,13 +1170,14 @@ fun BottomSheetPlayer(
                                     .background(textButtonColor)
                                     .tvFocusableHighlight(shareShape)
                                     .clickable {
-                                        showShareSheet = true
+                                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                        canvasBackgroundFullscreen = !canvasBackgroundFullscreen
                                     }
                             ) {
                                 Image(
-                                    painter = painterResource(R.drawable.share),
-                                    contentDescription = null,
-                                    colorFilter = ColorFilter.tint(iconButtonColor),
+                                    painter = painterResource(if (canvasBackgroundFullscreen) R.drawable.video else R.drawable.videocam_off),
+                                    contentDescription = "Toggle Background Video",
+                                    colorFilter = ColorFilter.tint(if (canvasBackgroundFullscreen) iconButtonColor else iconButtonColor.copy(alpha = 0.40f)),
                                     modifier = Modifier
                                         .align(Alignment.Center)
                                         .size(24.dp)
@@ -1192,13 +1193,14 @@ fun BottomSheetPlayer(
                                 .background(textButtonColor)
                                 .tvFocusableHighlight(RoundedCornerShape(24.dp))
                                 .clickable {
-                                    showShareSheet = true
+                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                    canvasBackgroundFullscreen = !canvasBackgroundFullscreen
                                 },
                         ) {
                             Image(
-                                painter = painterResource(R.drawable.share),
-                                contentDescription = null,
-                                colorFilter = ColorFilter.tint(iconButtonColor),
+                                painter = painterResource(if (canvasBackgroundFullscreen) R.drawable.video else R.drawable.videocam_off),
+                                contentDescription = "Toggle Background Video",
+                                colorFilter = ColorFilter.tint(if (canvasBackgroundFullscreen) iconButtonColor else iconButtonColor.copy(alpha = 0.40f)),
                                 modifier = Modifier
                                     .align(Alignment.Center)
                                     .size(24.dp),
