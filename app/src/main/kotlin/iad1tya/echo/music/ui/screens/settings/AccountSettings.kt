@@ -181,7 +181,10 @@ fun AccountSettings(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = androidx.compose.material3.ripple(),
                         onClick = {
-                            if (isLoggedIn) {
+                            if (isSpotifyLoggedIn) {
+                                onClose()
+                                navController.navigate("spotify_hub")
+                            } else if (isLoggedIn) {
                                 showAccountSwitcher = !showAccountSwitcher
                             } else {
                                 onClose()
@@ -203,13 +206,20 @@ fun AccountSettings(
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(42.dp)
                         .clip(CircleShape)
                         .border(
-                            width = 1.5.dp,
+                            width = 1.8.dp,
                             color = if (isSpotifyLoggedIn) androidx.compose.ui.graphics.Color(0xFF1DB954) else MaterialTheme.colorScheme.primary,
                             shape = CircleShape
                         )
+                )
+            } else if (isSpotifyLoggedIn) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_spotify),
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = androidx.compose.ui.graphics.Color(0xFF1DB954)
                 )
             } else {
                 Icon(
@@ -225,34 +235,33 @@ fun AccountSettings(
             Column(Modifier.weight(1f)) {
                 val headerName = when {
                     isSpotifyLoggedIn && !currentSpotifyUser?.displayName.isNullOrBlank() && !currentSpotifyUser?.displayName.equals("Spotify User", ignoreCase = true) -> currentSpotifyUser?.displayName!!
-                    isLoggedIn && accountName.isNotBlank() -> accountName
                     isSpotifyLoggedIn -> "Spotify User"
+                    isLoggedIn && accountName.isNotBlank() -> accountName
                     else -> "Google Login"
                 }
                 Text(
                     text = headerName,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = if (isSpotifyLoggedIn) androidx.compose.ui.graphics.Color(0xFF1DB954) else MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.padding(start = 5.dp)
                 )
-                // Show account count if multiple accounts or connection status
-                if (isLoggedIn && allAccounts.size > 1) {
+                if (isSpotifyLoggedIn) {
+                    Text(
+                        text = "Connected with Spotify",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 5.dp)
+                    )
+                } else if (isLoggedIn && allAccounts.size > 1) {
                     Text(
                         text = stringResource(R.string.accounts_count, allAccounts.size),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 5.dp)
                     )
-                } else if (isSpotifyLoggedIn && isLoggedIn) {
+                } else if (isLoggedIn) {
                     Text(
-                        text = "Spotify & Google connected",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 5.dp)
-                    )
-                } else if (isSpotifyLoggedIn) {
-                    Text(
-                        text = "Spotify connected",
+                        text = "Google connected",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 5.dp)
@@ -260,7 +269,21 @@ fun AccountSettings(
                 }
             }
 
-            if (isLoggedIn) {
+            if (isSpotifyLoggedIn) {
+                OutlinedButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            SpotifyAuthManager.logout()
+                        }
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text(stringResource(R.string.action_logout))
+                }
+            } else if (isLoggedIn) {
                 OutlinedButton(
                     onClick = {
                         coroutineScope.launch {
@@ -282,62 +305,108 @@ fun AccountSettings(
                 }
             }
             } // end profile row
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 18.dp),
-                thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        if (!isLoggedIn) showTokenEditor = true
-                        else if (!showToken) showToken = true
-                        else showTokenEditor = true
+
+            if (isSpotifyLoggedIn) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 18.dp),
+                    thickness = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onClose()
+                            navController.navigate("spotify_hub")
+                        }
+                        .padding(horizontal = 18.dp, vertical = 13.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_spotify),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = androidx.compose.ui.graphics.Color(0xFF1DB954)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Open Spotify Hub",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                        )
+                        Text(
+                            text = "Playlists, Liked Songs & Genre Mixes",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    .padding(horizontal = 18.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Icon(
-                    painter = rememberVectorPainter(Icons.Rounded.Key),
-                    contentDescription = null,
-                    modifier = Modifier.size(22.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    Icon(
+                        painter = rememberVectorPainter(Icons.AutoMirrored.Rounded.NavigateNext),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 18.dp),
+                    thickness = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                 )
-                Text(
-                    text = when {
-                        !isLoggedIn -> stringResource(R.string.advanced_login)
-                        showToken -> stringResource(R.string.token_shown)
-                        else -> stringResource(R.string.token_hidden)
-                    },
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            if (!isLoggedIn) showTokenEditor = true
+                            else if (!showToken) showToken = true
+                            else showTokenEditor = true
+                        }
+                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        painter = rememberVectorPainter(Icons.Rounded.Key),
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = when {
+                            !isLoggedIn -> stringResource(R.string.advanced_login)
+                            showToken -> stringResource(R.string.token_shown)
+                            else -> stringResource(R.string.token_hidden)
+                        },
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
             }
         }
 
-            // Account Switcher Dropdown - appears directly below the account section
-            AccountSwitcherDropdown(
-                expanded = showAccountSwitcher,
-                accounts = allAccounts,
-                activeAccountId = activeAccount?.id,
-                onSwitchAccount = { accountId ->
-                    coroutineScope.launch {
-                        accountSettingsViewModel.switchAccount(accountId)
+            if (!isSpotifyLoggedIn) {
+                // Account Switcher Dropdown - appears directly below the account section
+                AccountSwitcherDropdown(
+                    expanded = showAccountSwitcher,
+                    accounts = allAccounts,
+                    activeAccountId = activeAccount?.id,
+                    onSwitchAccount = { accountId ->
+                        coroutineScope.launch {
+                            accountSettingsViewModel.switchAccount(accountId)
+                            showAccountSwitcher = false
+                        }
+                    },
+                    onAddAccount = {
                         showAccountSwitcher = false
+                        onClose()
+                        navController.navigate("login")
+                    },
+                    onManageAccounts = {
+                        showAccountSwitcher = false
+                        onClose()
+                        navController.navigate("account")
                     }
-                },
-                onAddAccount = {
-                    showAccountSwitcher = false
-                    onClose()
-                    navController.navigate("login")
-                },
-                onManageAccounts = {
-                    showAccountSwitcher = false
-                    onClose()
-                    navController.navigate("account")
-                }
-            )
+                )
+            }
         }
 
         Spacer(Modifier.height(4.dp))
@@ -379,76 +448,54 @@ fun AccountSettings(
         }
 
 
-        // Spotify Account & Hub Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-            elevation = CardDefaults.cardElevation(0.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        onClose()
-                        if (isSpotifyLoggedIn) {
-                            navController.navigate("spotify_hub")
-                        } else {
+        if (!isSpotifyLoggedIn) {
+            // Connect Spotify Account Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onClose()
                             navController.navigate("spotify_login")
                         }
-                    }
-                    .padding(horizontal = 18.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                if (isSpotifyLoggedIn && !currentSpotifyUser?.avatarUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = currentSpotifyUser?.avatarUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .border(1.5.dp, androidx.compose.ui.graphics.Color(0xFF1DB954), CircleShape)
-                    )
-                } else {
+                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_spotify),
                         contentDescription = null,
                         modifier = Modifier.size(24.dp),
                         tint = androidx.compose.ui.graphics.Color(0xFF1DB954)
                     )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (isSpotifyLoggedIn) {
-                            "Spotify: ${currentSpotifyUser?.displayName ?: "Connected"}"
-                        } else {
-                            "Connect Spotify Account"
-                        },
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = if (isSpotifyLoggedIn) {
-                            "Playlists, Liked Songs & Genre Mixes"
-                        } else {
-                            "Sync playlists & 120+ genre seeds"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Connect Spotify Account",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Sync playlists & 120+ genre seeds",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(
+                        painter = rememberVectorPainter(Icons.AutoMirrored.Rounded.NavigateNext),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Icon(
-                    painter = rememberVectorPainter(Icons.AutoMirrored.Rounded.NavigateNext),
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
-        }
 
-        Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(4.dp))
+        }
 
         // Settings — individual card
         Card(

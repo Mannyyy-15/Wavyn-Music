@@ -7,6 +7,10 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -171,15 +175,26 @@ fun LovedSongTile(
     isPlaying: Boolean,
     modifier: Modifier = Modifier
 ) {
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "TileScale"
+    )
+    val coroutineScope = rememberCoroutineScope()
+
     val containerColor = if (isActive) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.70f)
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
     } else {
-        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f)
+        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f)
     }
     val borderColor = if (isActive) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
     } else {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f)
     }
 
     Row(
@@ -187,18 +202,30 @@ fun LovedSongTile(
         modifier = modifier
             .fillMaxWidth()
             .height(56.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RoundedCornerShape(8.dp))
             .background(containerColor)
-            .border(BorderStroke(0.75.dp, borderColor), RoundedCornerShape(10.dp))
+            .border(BorderStroke(0.75.dp, borderColor), RoundedCornerShape(8.dp))
             .combinedClickable(
-                onClick = item.playAction,
+                onClick = {
+                    coroutineScope.launch {
+                        isPressed = true
+                        delay(100)
+                        isPressed = false
+                    }
+                    item.playAction()
+                },
                 onLongClick = item.menuAction
             )
     ) {
+        // Left Artwork (flush with tile edge, rounded start corners)
         Box(
             modifier = Modifier
                 .size(56.dp)
-                .clip(RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp))
+                .clip(RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
@@ -217,24 +244,9 @@ fun LovedSongTile(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-
-            if (isActive) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.45f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(if (isPlaying) R.drawable.pause else R.drawable.play),
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = Color.White
-                    )
-                }
-            }
         }
 
+        // Title and Subtitle
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -255,11 +267,30 @@ fun LovedSongTile(
                 Text(
                     text = item.subtitle,
                     style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 11.sp
+                        fontSize = 11.5.sp
                     ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        // Right side: Active equalizer or indicator bubble
+        if (isActive) {
+            Box(
+                modifier = Modifier
+                    .padding(end = 10.dp)
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(if (isPlaying) R.drawable.pause else R.drawable.play),
+                    contentDescription = null,
+                    modifier = Modifier.size(15.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -922,14 +953,14 @@ fun HomeScreen(
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontFamily = FontFamily(Font(R.font.zalando_sans_expanded)),
                         fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp
+                        fontSize = 22.sp
                     ),
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp)
+                        .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 8.dp)
                 )
             }
 
@@ -939,10 +970,58 @@ fun HomeScreen(
                 // SECTION 1: "Yours Loved" (6 most played songs in 2-column x 3-row grid)
                 if (lovedSongs.isNotEmpty()) {
                     item(key = "yours_loved_title") {
-                        NavigationTitle(
-                            title = "Yours Loved",
-                            modifier = Modifier.animateItem()
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp)
+                                .animateItem(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.favorite),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(17.dp)
+                                )
+                                Text(
+                                    text = "Yours Loved",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 17.sp,
+                                        letterSpacing = 0.15.sp
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+
+                            // TOP PLAYED Badge
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
+                                    .border(
+                                        width = 0.75.dp,
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                        shape = RoundedCornerShape(6.dp)
+                                    )
+                                    .padding(horizontal = 7.dp, vertical = 2.5.dp)
+                            ) {
+                                Text(
+                                    text = "TOP PLAYED",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        letterSpacing = 0.8.sp
+                                    ),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                     }
 
                     item(key = "yours_loved_grid") {

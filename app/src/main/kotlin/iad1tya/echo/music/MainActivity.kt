@@ -1945,32 +1945,22 @@ class MainActivity : ComponentActivity() {
                                 .fillMaxSize()
                                 .zIndex(100f)
                         ) {
-                            Box(
+                            Surface(
                                 modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.CenterEnd
+                                color = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
+                                tonalElevation = 6.dp
                             ) {
-                                Surface(
+                                AccountSettings(
+                                    navController = navController,
+                                    onClose = {
+                                        showAccountSidebar = false
+                                        homeViewModel.refresh()
+                                    },
+                                    latestVersionName = latestVersionName,
                                     modifier = Modifier
-                                        .fillMaxHeight()
-                                        .fillMaxWidth(0.85f)
-                                        .widthIn(max = 420.dp),
-                                    shape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp),
-                                    color = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
-                                    tonalElevation = 6.dp,
-                                    shadowElevation = 16.dp
-                                ) {
-                                    AccountSettings(
-                                        navController = navController,
-                                        onClose = {
-                                            showAccountSidebar = false
-                                            homeViewModel.refresh()
-                                        },
-                                        latestVersionName = latestVersionName,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .windowInsetsPadding(WindowInsets.systemBars)
-                                    )
-                                }
+                                        .fillMaxSize()
+                                        .windowInsetsPadding(WindowInsets.systemBars)
+                                )
                             }
                         }
 

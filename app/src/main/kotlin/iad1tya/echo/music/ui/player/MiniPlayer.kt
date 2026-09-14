@@ -449,20 +449,24 @@ private fun NewMiniPlayer(
                 .then(
                     if (isEffectivelyPureBlack) {
                         Modifier.background(Color(0xFF07080B))
-                    } else if (gradientColors.isNotEmpty()) {
-                        Modifier.background(
-                            Brush.horizontalGradient(
-                                listOf(
-                                    Color(0xF00B0D13),
-                                    gradientColors.first().copy(alpha = 0.35f),
-                                    Color(0xF00B0D13)
-                                )
-                            )
-                        )
                     } else {
-                        Modifier.background(
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f)
-                        )
+                        Modifier
+                            .background(Color(0xFF13151B))
+                            .then(
+                                if (gradientColors.isNotEmpty()) {
+                                    Modifier.background(
+                                        Brush.horizontalGradient(
+                                            listOf(
+                                                Color(0xFF13151B),
+                                                gradientColors.first().copy(alpha = 0.28f),
+                                                Color(0xFF13151B)
+                                            )
+                                        )
+                                    )
+                                } else {
+                                    Modifier
+                                }
+                            )
                     }
                 )
         ) {
@@ -583,6 +587,28 @@ private fun NewMiniPlayer(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    // Sleek Skip Previous
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .tvFocusableHighlight(CircleShape)
+                            .clip(CircleShape)
+                            .clickable(enabled = canSkipPrevious) {
+                                playerConnection.player.seekToPreviousMediaItem()
+                            }
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.skip_previous),
+                            contentDescription = null,
+                            tint = if (canSkipPrevious)
+                                Color.White.copy(alpha = 0.85f)
+                            else
+                                Color.White.copy(alpha = 0.25f),
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+
                     // Tactile Play/Pause Bubble
                     var isPlayPressed by remember { mutableStateOf(false) }
                     val playScale by animateFloatAsState(

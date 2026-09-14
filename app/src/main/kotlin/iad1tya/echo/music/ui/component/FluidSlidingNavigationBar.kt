@@ -79,8 +79,8 @@ fun FluidSlidingNavigationBar(
                 .height(if (slim) 54.dp else 62.dp)
         ) {
             val tabWidth = maxWidth / items.size
-            val pillWidth = if (slim) 52.dp else 58.dp
-            val pillHeight = if (slim) 30.dp else 34.dp
+            val pillWidth = 56.dp
+            val pillHeight = 32.dp
 
             val indicatorOffset by animateDpAsState(
                 targetValue = (tabWidth * selectedIndex) + ((tabWidth - pillWidth) / 2),
@@ -91,23 +91,23 @@ fun FluidSlidingNavigationBar(
                 label = "DockPillOffset"
             )
 
-            // Floating Active Capsule Indicator styled with Theme primary container
+            // Floating Active Capsule Indicator styled to encapsulate only the icon
             Box(
                 modifier = Modifier
-                    .offset(x = indicatorOffset, y = if (slim) 12.dp else 14.dp)
+                    .offset(x = indicatorOffset, y = if (slim) 11.dp else 4.dp)
                     .width(pillWidth)
                     .height(pillHeight)
                     .clip(CircleShape)
                     .border(
                         width = 0.8.dp,
-                        color = if (pureBlack) Color.White.copy(alpha = 0.18f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.20f),
+                        color = if (pureBlack) Color.White.copy(alpha = 0.18f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
                         shape = CircleShape
                     )
                     .background(
                         if (pureBlack) {
-                            Color.White.copy(alpha = 0.16f)
+                            Color.White.copy(alpha = 0.15f)
                         } else {
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.75f)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
                         }
                     )
             )
@@ -120,7 +120,7 @@ fun FluidSlidingNavigationBar(
                     val isSelected = selectedIndex == index
 
                     val iconScale by animateFloatAsState(
-                        targetValue = if (isSelected) 1.10f else 1.0f,
+                        targetValue = if (isSelected) 1.08f else 1.0f,
                         animationSpec = spring(
                             dampingRatio = Spring.DampingRatioMediumBouncy,
                             stiffness = Spring.StiffnessMedium
@@ -151,28 +151,36 @@ fun FluidSlidingNavigationBar(
                         verticalArrangement = if (slim) Arrangement.Center else Arrangement.Top
                     ) {
                         if (!slim) {
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
                         }
 
-                        Icon(
-                            painter = painterResource(id = if (isSelected) item.iconIdActive else item.iconIdInactive),
-                            contentDescription = stringResource(id = item.titleId),
-                            tint = tabColor,
+                        // Dedicated Box for icon perfectly aligned with the pill indicator
+                        Box(
                             modifier = Modifier
-                                .size(23.dp)
-                                .graphicsLayer {
-                                    scaleX = iconScale
-                                    scaleY = iconScale
-                                }
-                        )
+                                .width(pillWidth)
+                                .height(pillHeight),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = if (isSelected) item.iconIdActive else item.iconIdInactive),
+                                contentDescription = stringResource(id = item.titleId),
+                                tint = tabColor,
+                                modifier = Modifier
+                                    .size(23.dp)
+                                    .graphicsLayer {
+                                        scaleX = iconScale
+                                        scaleY = iconScale
+                                    }
+                            )
+                        }
 
                         if (!slim) {
-                            Spacer(modifier = Modifier.height(3.dp))
+                            Spacer(modifier = Modifier.height(2.dp))
 
                             Text(
                                 text = stringResource(id = item.titleId),
                                 fontSize = 11.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 color = tabColor,
