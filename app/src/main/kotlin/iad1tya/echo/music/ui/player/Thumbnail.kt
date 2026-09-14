@@ -191,7 +191,8 @@ fun Thumbnail(
         PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.onBackground
         PlayerBackgroundStyle.GRADIENT -> Color.White
         PlayerBackgroundStyle.BLUR -> Color.White
-        PlayerBackgroundStyle.GLOW_ANIMATED -> Color.White
+        PlayerBackgroundStyle.GLOW_ANIMATED,
+        PlayerBackgroundStyle.FLUID_MESH -> Color.White
     }
 
     LaunchedEffect(maxCanvasCacheSize) {

@@ -411,8 +411,10 @@ enum class PlayerBackgroundStyle {
     GRADIENT,
     BLUR,
     GLOW_ANIMATED,
+    FLUID_MESH,
 }
 
+val CanvasBackgroundFullscreenKey = booleanPreferencesKey("canvasBackgroundFullscreen")
 val TopSize = stringPreferencesKey("topSize")
 val HistoryDuration = floatPreferencesKey("historyDuration")
 

@@ -100,6 +100,7 @@ import iad1tya.echo.music.constants.UseNewMiniPlayerDesignKey
 import iad1tya.echo.music.constants.UseNewPlayerDesignKey
 import iad1tya.echo.music.constants.PlayerBackgroundStyle
 import iad1tya.echo.music.constants.PlayerBackgroundStyleKey
+import iad1tya.echo.music.constants.CanvasBackgroundFullscreenKey
 import iad1tya.echo.music.constants.PlayerButtonsStyle
 import iad1tya.echo.music.constants.PlayerButtonsStyleKey
 import iad1tya.echo.music.constants.WavynCanvasKey
@@ -173,8 +174,12 @@ fun AppearanceSettings(
     val (playerBackground, onPlayerBackgroundChange) =
         rememberEnumPreference(
             PlayerBackgroundStyleKey,
-            defaultValue = PlayerBackgroundStyle.BLUR,
+            defaultValue = PlayerBackgroundStyle.FLUID_MESH,
         )
+    val (canvasBackgroundFullscreen, onCanvasBackgroundFullscreenChange) = rememberPreference(
+        CanvasBackgroundFullscreenKey,
+        defaultValue = true
+    )
     val (useNewPlayerDesign, onUseNewPlayerDesignChange) = rememberPreference(
         UseNewPlayerDesignKey,
         defaultValue = true
@@ -551,8 +556,17 @@ fun AppearanceSettings(
                             PlayerBackgroundStyle.GRADIENT -> stringResource(R.string.gradient)
                             PlayerBackgroundStyle.BLUR -> "Blur"
                             PlayerBackgroundStyle.GLOW_ANIMATED -> "Glow Animated"
+                            PlayerBackgroundStyle.FLUID_MESH -> "Fluid Mesh (Apple Music)"
                         }
                     },
+                )
+
+                SwitchPreference(
+                    title = { Text("Spotify Canvas Background") },
+                    description = "Looping vertical video snippets behind player controls",
+                    icon = { Icon(painterResource(R.drawable.ic_spotify), null) },
+                    checked = canvasBackgroundFullscreen,
+                    onCheckedChange = onCanvasBackgroundFullscreenChange,
                 )
 
                 EnumListPreference(

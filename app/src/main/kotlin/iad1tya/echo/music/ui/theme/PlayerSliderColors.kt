@@ -43,7 +43,8 @@ object PlayerSliderColors {
             PlayerBackgroundStyle.BLUR -> {
                 Color.White.copy(alpha = 0.4f)
             }
-            PlayerBackgroundStyle.GLOW_ANIMATED -> {
+            PlayerBackgroundStyle.GLOW_ANIMATED,
+            PlayerBackgroundStyle.FLUID_MESH -> {
                 Color.White.copy(alpha = 0.4f)
             }
         }
@@ -127,7 +128,8 @@ object PlayerSliderColors {
             PlayerBackgroundStyle.BLUR -> {
                 Color.White.copy(alpha = 0.4f)
             }
-            PlayerBackgroundStyle.GLOW_ANIMATED -> {
+            PlayerBackgroundStyle.GLOW_ANIMATED,
+            PlayerBackgroundStyle.FLUID_MESH -> {
                 Color.White.copy(alpha = 0.4f)
             }
         }

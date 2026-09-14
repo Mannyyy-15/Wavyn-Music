@@ -1095,6 +1095,8 @@ class MainActivity : ComponentActivity() {
                         LocalSyncUtils provides syncUtils,
                     ) {
                         Scaffold(
+                            containerColor = Color.Transparent,
+                            contentColor = if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurface,
                             topBar = {
                                 AnimatedVisibility(
                                     visible = shouldShowTopBar,
@@ -1616,16 +1618,10 @@ class MainActivity : ComponentActivity() {
                                                         modifier = Modifier
                                                             .align(Alignment.BottomCenter)
                                                             .padding(
-                                                                start = 12.dp,
-                                                                end = 12.dp,
-                                                                bottom = bottomInset + floatingBarsBottomPadding,
+                                                                start = 14.dp,
+                                                                end = 14.dp,
+                                                                bottom = bottomInset + floatingBarsBottomPadding + 2.dp,
                                                             )
-                                                            .border(
-                                                                width = 1.dp,
-                                                                color = if (pureBlack) Color.White.copy(alpha = 0.18f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f),
-                                                                shape = RoundedCornerShape(24.dp)
-                                                            )
-                                                            .clip(RoundedCornerShape(24.dp))
                                                             .fillMaxWidth()
                                                             .height(navVisibleHeight),
                                                         onTabSelected = { screen ->
@@ -1668,6 +1664,23 @@ class MainActivity : ComponentActivity() {
 
                             modifier = Modifier
                                 .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        if (pureBlack) {
+                                            listOf(
+                                                Color(0xFF0D0F14),
+                                                Color(0xFF07080B),
+                                                Color(0xFF000000)
+                                            )
+                                        } else {
+                                            listOf(
+                                                Color(0xFF131722),
+                                                Color(0xFF0C0E15),
+                                                Color(0xFF05060A)
+                                            )
+                                        }
+                                    )
+                                )
                                 .nestedScroll(searchBarScrollBehavior.nestedScrollConnection)
                         ) {
                             Row(Modifier.fillMaxSize()) {

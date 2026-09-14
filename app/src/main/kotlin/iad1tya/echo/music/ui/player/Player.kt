@@ -148,6 +148,7 @@ import coil3.toBitmap
 import iad1tya.echo.music.LocalDownloadUtil
 import iad1tya.echo.music.LocalPlayerConnection
 import iad1tya.echo.music.R
+import iad1tya.echo.music.constants.CanvasBackgroundFullscreenKey
 import iad1tya.echo.music.constants.DarkModeKey
 import iad1tya.echo.music.constants.PlayerBackgroundStyle
 import iad1tya.echo.music.constants.PlayerBackgroundStyleKey
@@ -237,7 +238,11 @@ fun BottomSheetPlayer(
     )
     val playerBackground by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
-        defaultValue = PlayerBackgroundStyle.BLUR
+        defaultValue = PlayerBackgroundStyle.FLUID_MESH
+    )
+    val canvasBackgroundFullscreen by rememberPreference(
+        key = CanvasBackgroundFullscreenKey,
+        defaultValue = true
     )
     val playerButtonsStyle by rememberEnumPreference(
         key = PlayerButtonsStyleKey,
@@ -308,11 +313,14 @@ fun BottomSheetPlayer(
     val fallbackColor = Color(0xFF1C1B1F).toArgb()
 
     LaunchedEffect(mediaMetadata?.id, playerBackground) {
-        if (playerBackground == PlayerBackgroundStyle.GRADIENT || playerBackground == PlayerBackgroundStyle.GLOW_ANIMATED) {
+        if (playerBackground == PlayerBackgroundStyle.GRADIENT || playerBackground == PlayerBackgroundStyle.GLOW_ANIMATED || playerBackground == PlayerBackgroundStyle.FLUID_MESH) {
             val currentMetadata = mediaMetadata
             if (currentMetadata != null && currentMetadata.thumbnailUrl != null) {
-                val cacheKey = if (playerBackground == PlayerBackgroundStyle.GLOW_ANIMATED)
-                    "glow_${currentMetadata.id}" else currentMetadata.id
+                val cacheKey = when (playerBackground) {
+                    PlayerBackgroundStyle.GLOW_ANIMATED -> "glow_${currentMetadata.id}"
+                    PlayerBackgroundStyle.FLUID_MESH -> "fluid_${currentMetadata.id}"
+                    else -> currentMetadata.id
+                }
                 val cachedColors = gradientColorsCache[cacheKey]
                 if (cachedColors != null) {
                     gradientColors = cachedColors
@@ -336,7 +344,7 @@ fun BottomSheetPlayer(
                                     .resizeBitmapArea(100 * 100)
                                     .generate()
                             }
-                            val extractedColors = if (playerBackground == PlayerBackgroundStyle.GLOW_ANIMATED) {
+                            val extractedColors = if (playerBackground == PlayerBackgroundStyle.GLOW_ANIMATED || playerBackground == PlayerBackgroundStyle.FLUID_MESH) {
                                 listOfNotNull(
                                     palette.getVibrantColor(fallbackColor).let { Color(it) },
                                     palette.getLightVibrantColor(fallbackColor).let { Color(it) },
@@ -359,6 +367,49 @@ fun BottomSheetPlayer(
             }
         } else {
             gradientColors = emptyList()
+        }
+    }
+
+    var fullscreenCanvasArtwork by remember { mutableStateOf<iad1tya.echo.music.canvas.CanvasArtwork?>(null) }
+    LaunchedEffect(mediaMetadata?.id, canvasBackgroundFullscreen) {
+        if (!canvasBackgroundFullscreen) {
+            fullscreenCanvasArtwork = null
+            return@LaunchedEffect
+        }
+        val mediaId = mediaMetadata?.id ?: run {
+            fullscreenCanvasArtwork = null
+            return@LaunchedEffect
+        }
+        val cached = iad1tya.echo.music.canvas.CanvasArtworkPlaybackCache.get(mediaId)
+        if (cached != null) {
+            fullscreenCanvasArtwork = cached
+            return@LaunchedEffect
+        }
+        withContext(Dispatchers.IO) {
+            val spotifyId = iad1tya.echo.music.spotify.SpotifyCacheDatabase.getInstance().getSpotifyIdByVideoId(mediaId)
+            val artwork = if (!spotifyId.isNullOrBlank()) {
+                iad1tya.echo.music.canvas.WavynCanvas.getBySpotifyTrackId(spotifyId)
+            } else {
+                val title = mediaMetadata?.title ?: ""
+                val artist = mediaMetadata?.artists?.firstOrNull()?.name ?: ""
+                if (title.isNotBlank()) {
+                    iad1tya.echo.music.canvas.WavynCanvas.getBySongArtist(
+                        song = title,
+                        artist = artist,
+                        duration = mediaMetadata?.duration
+                    )
+                } else null
+            }
+            if (artwork != null) {
+                iad1tya.echo.music.canvas.CanvasArtworkPlaybackCache.put(mediaId, artwork)
+                withContext(Dispatchers.Main) {
+                    fullscreenCanvasArtwork = artwork
+                }
+            } else {
+                withContext(Dispatchers.Main) {
+                    fullscreenCanvasArtwork = null
+                }
+            }
         }
     }
 
@@ -531,145 +582,190 @@ fun BottomSheetPlayer(
                     .fillMaxSize()
                     .background(bottomSheetBackgroundColor)
             ) {
-                when (playerBackground) {
-                    PlayerBackgroundStyle.BLUR -> {
-                        AnimatedContent(
-                            targetState = mediaMetadata?.thumbnailUrl,
-                            transitionSpec = { fadeIn(tween(800)).togetherWith(fadeOut(tween(800))) },
-                            label = "blurBackground"
-                        ) { thumbnailUrl ->
-                            if (thumbnailUrl != null) {
-                                Box(modifier = Modifier.alpha(backgroundAlpha)) {
-                                    AsyncImage(
-                                        model = ImageRequest.Builder(context)
-                                            .data(thumbnailUrl)
-                                            .size(100, 100)
-                                            .allowHardware(false)
-                                            .build(),
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
+                if (canvasBackgroundFullscreen && fullscreenCanvasArtwork?.preferredAnimationUrl != null) {
+                    val isPlayingCanvas by playerConnection.isPlaying.collectAsState()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .alpha(backgroundAlpha)
+                    ) {
+                        CanvasArtworkPlayer(
+                            primaryUrl = fullscreenCanvasArtwork?.animated,
+                            fallbackUrl = fullscreenCanvasArtwork?.videoUrl,
+                            isPlaying = isPlayingCanvas,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            Color.Black.copy(alpha = 0.40f),
+                                            Color.Black.copy(alpha = 0.25f),
+                                            Color.Black.copy(alpha = 0.70f)
+                                        )
+                                    )
+                                )
+                        )
+                    }
+                } else {
+                    when (playerBackground) {
+                        PlayerBackgroundStyle.FLUID_MESH -> {
+                            AnimatedContent(
+                                targetState = gradientColors,
+                                transitionSpec = { fadeIn(tween(1200)) togetherWith fadeOut(tween(1200)) },
+                                label = "FluidMeshAnimatedContent"
+                            ) { colors ->
+                                if (colors.isNotEmpty()) {
+                                    FluidMeshPlayerBackground(
+                                        colors = colors,
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .blur(150.dp)
+                                            .alpha(backgroundAlpha)
                                     )
+                                }
+                            }
+                        }
+                        PlayerBackgroundStyle.BLUR -> {
+                            AnimatedContent(
+                                targetState = mediaMetadata?.thumbnailUrl,
+                                transitionSpec = { fadeIn(tween(800)).togetherWith(fadeOut(tween(800))) },
+                                label = "blurBackground"
+                            ) { thumbnailUrl ->
+                                if (thumbnailUrl != null) {
+                                    Box(modifier = Modifier.alpha(backgroundAlpha)) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(context)
+                                                .data(thumbnailUrl)
+                                                .size(100, 100)
+                                                .allowHardware(false)
+                                                .build(),
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .blur(150.dp)
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(Color.Black.copy(alpha = 0.45f))
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        PlayerBackgroundStyle.GRADIENT -> {
+                            AnimatedContent(
+                                targetState = gradientColors,
+                                transitionSpec = {
+                                    fadeIn(tween(800)).togetherWith(fadeOut(tween(800)))
+                                },
+                                label = "gradientBackground"
+                            ) { colors ->
+                                if (colors.isNotEmpty()) {
+                                    AnimatedGradientBackground(
+                                        colors = colors,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .alpha(backgroundAlpha)
+                                    )
+                                }
+                            }
+                        }
+                        PlayerBackgroundStyle.GLOW_ANIMATED -> {
+                            AnimatedContent(
+                                targetState = gradientColors,
+                                transitionSpec = { fadeIn(tween(1200)) togetherWith fadeOut(tween(1200)) },
+                                label = "GlowAnimatedContent"
+                            ) { colors ->
+                                if (colors.isNotEmpty()) {
+                                    val infiniteTransition = rememberInfiniteTransition(label = "GlowAnimation")
+                                    val progress by infiniteTransition.animateFloat(
+                                        initialValue = 0f,
+                                        targetValue = 1f,
+                                        animationSpec = infiniteRepeatable(
+                                            animation = tween(20000, easing = LinearEasing),
+                                            repeatMode = RepeatMode.Restart
+                                        ),
+                                        label = "glowProgress"
+                                    )
+
+                                    fun rotatedColorAt(index: Int): Color {
+                                        val size = colors.size
+                                        val idx = index.toFloat() + progress * size
+                                        val a = kotlin.math.floor(idx).toInt() % size
+                                        val b = (a + 1) % size
+                                        val frac = idx - kotlin.math.floor(idx)
+                                        return lerp(
+                                            colors.getOrElse(a) { Color.DarkGray },
+                                            colors.getOrElse(b) { Color.DarkGray },
+                                            frac
+                                        )
+                                    }
+
+                                    fun oscillate(min: Float, max: Float, phase: Float, speed: Float = 1f): Float {
+                                        val v = kotlin.math.sin(2.0 * kotlin.math.PI * (progress * speed + phase)).toFloat()
+                                        return min + (max - min) * ((v + 1f) * 0.5f)
+                                    }
+
+                                    val color1 = rotatedColorAt(0)
+                                    val color2 = rotatedColorAt(1)
+                                    val color3 = rotatedColorAt(2)
+                                    val color4 = rotatedColorAt(3)
+                                    val color5 = rotatedColorAt(4)
+                                    val color6 = rotatedColorAt(5)
+
+                                    val o1x = oscillate(0.0f, 1.0f, 0.00f)
+                                    val o1y = oscillate(0.0f, 0.5f, 0.07f)
+                                    val r1 = oscillate(0.8f, 1.6f, 0.12f)
+                                    val o2x = oscillate(1.0f, 0.0f, 0.2f)
+                                    val o2y = oscillate(0.5f, 1.0f, 0.25f)
+                                    val r2 = oscillate(0.7f, 1.5f, 0.18f)
+                                    val o3x = oscillate(0.2f, 0.8f, 0.33f)
+                                    val o3y = oscillate(0.8f, 0.2f, 0.36f)
+                                    val r3 = oscillate(0.6f, 1.4f, 0.29f)
+                                    val o4x = oscillate(0.3f, 0.7f, 0.44f)
+                                    val o4y = oscillate(0.2f, 0.8f, 0.41f)
+                                    val r4 = oscillate(0.9f, 1.7f, 0.47f)
+                                    val o5x = oscillate(0.4f, 0.6f, 0.55f)
+                                    val o5y = oscillate(0.0f, 1.0f, 0.51f)
+                                    val r5 = oscillate(0.7f, 1.5f, 0.58f)
+                                    val o6x = oscillate(0.0f, 1.0f, 0.66f)
+                                    val o6y = oscillate(0.5f, 0.7f, 0.62f)
+                                    val r6 = oscillate(0.8f, 1.8f, 0.69f)
+
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .background(Color.Black.copy(alpha = 0.45f))
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    PlayerBackgroundStyle.GRADIENT -> {
-                        AnimatedContent(
-                            targetState = gradientColors,
-                            transitionSpec = {
-                                fadeIn(tween(800)).togetherWith(fadeOut(tween(800)))
-                            },
-                            label = "gradientBackground"
-                        ) { colors ->
-                            if (colors.isNotEmpty()) {
-                                AnimatedGradientBackground(
-                                    colors = colors,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .alpha(backgroundAlpha)
-                                )
-                            }
-                        }
-                    }
-                    PlayerBackgroundStyle.GLOW_ANIMATED -> {
-                        AnimatedContent(
-                            targetState = gradientColors,
-                            transitionSpec = { fadeIn(tween(1200)) togetherWith fadeOut(tween(1200)) },
-                            label = "GlowAnimatedContent"
-                        ) { colors ->
-                            if (colors.isNotEmpty()) {
-                                val infiniteTransition = rememberInfiniteTransition(label = "GlowAnimation")
-                                val progress by infiniteTransition.animateFloat(
-                                    initialValue = 0f,
-                                    targetValue = 1f,
-                                    animationSpec = infiniteRepeatable(
-                                        animation = tween(20000, easing = LinearEasing),
-                                        repeatMode = RepeatMode.Restart
-                                    ),
-                                    label = "glowProgress"
-                                )
-
-                                fun rotatedColorAt(index: Int): Color {
-                                    val size = colors.size
-                                    val idx = index.toFloat() + progress * size
-                                    val a = kotlin.math.floor(idx).toInt() % size
-                                    val b = (a + 1) % size
-                                    val frac = idx - kotlin.math.floor(idx)
-                                    return lerp(
-                                        colors.getOrElse(a) { Color.DarkGray },
-                                        colors.getOrElse(b) { Color.DarkGray },
-                                        frac
-                                    )
-                                }
-
-                                fun oscillate(min: Float, max: Float, phase: Float, speed: Float = 1f): Float {
-                                    val v = kotlin.math.sin(2.0 * kotlin.math.PI * (progress * speed + phase)).toFloat()
-                                    return min + (max - min) * ((v + 1f) * 0.5f)
-                                }
-
-                                val color1 = rotatedColorAt(0)
-                                val color2 = rotatedColorAt(1)
-                                val color3 = rotatedColorAt(2)
-                                val color4 = rotatedColorAt(3)
-                                val color5 = rotatedColorAt(4)
-                                val color6 = rotatedColorAt(5)
-
-                                val o1x = oscillate(0.0f, 1.0f, 0.00f)
-                                val o1y = oscillate(0.0f, 0.5f, 0.07f)
-                                val r1 = oscillate(0.8f, 1.6f, 0.12f)
-                                val o2x = oscillate(1.0f, 0.0f, 0.2f)
-                                val o2y = oscillate(0.5f, 1.0f, 0.25f)
-                                val r2 = oscillate(0.7f, 1.5f, 0.18f)
-                                val o3x = oscillate(0.2f, 0.8f, 0.33f)
-                                val o3y = oscillate(0.8f, 0.2f, 0.36f)
-                                val r3 = oscillate(0.6f, 1.4f, 0.29f)
-                                val o4x = oscillate(0.3f, 0.7f, 0.44f)
-                                val o4y = oscillate(0.2f, 0.8f, 0.41f)
-                                val r4 = oscillate(0.9f, 1.7f, 0.47f)
-                                val o5x = oscillate(0.4f, 0.6f, 0.55f)
-                                val o5y = oscillate(0.0f, 1.0f, 0.51f)
-                                val r5 = oscillate(0.7f, 1.5f, 0.58f)
-                                val o6x = oscillate(0.0f, 1.0f, 0.66f)
-                                val o6y = oscillate(0.5f, 0.7f, 0.62f)
-                                val r6 = oscillate(0.8f, 1.8f, 0.69f)
-
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .alpha(backgroundAlpha)
-                                        .drawWithCache {
-                                            val w = size.width
-                                            val h = size.height
-                                            val base = Color(0xFF050505)
-                                            val b1 = Brush.radialGradient(listOf(color1.copy(0.85f), color1.copy(0.5f), Color.Transparent), Offset(w*o1x, h*o1y), w*r1)
-                                            val b2 = Brush.radialGradient(listOf(color2.copy(0.8f), color2.copy(0.45f), Color.Transparent), Offset(w*o2x, h*o2y), w*r2)
-                                            val b3 = Brush.radialGradient(listOf(color3.copy(0.75f), color3.copy(0.4f), Color.Transparent), Offset(w*o3x, h*o3y), w*r3)
-                                            val b4 = Brush.radialGradient(listOf(color4.copy(0.7f), color4.copy(0.35f), Color.Transparent), Offset(w*o4x, h*o4y), w*r4)
-                                            val b5 = Brush.radialGradient(listOf(color5.copy(0.65f), color5.copy(0.3f), Color.Transparent), Offset(w*o5x, h*o5y), w*r5)
-                                            val b6 = Brush.radialGradient(listOf(color6.copy(0.6f), color6.copy(0.25f), Color.Transparent), Offset(w*o6x, h*o6y), w*r6)
-                                            onDrawBehind {
-                                                drawRect(color = base)
-                                                drawRect(brush = b1)
-                                                drawRect(brush = b2)
-                                                drawRect(brush = b3)
-                                                drawRect(brush = b4)
-                                                drawRect(brush = b5)
-                                                drawRect(brush = b6)
+                                            .alpha(backgroundAlpha)
+                                            .drawWithCache {
+                                                val w = size.width
+                                                val h = size.height
+                                                val base = Color(0xFF050505)
+                                                val b1 = Brush.radialGradient(listOf(color1.copy(0.85f), color1.copy(0.5f), Color.Transparent), Offset(w*o1x, h*o1y), w*r1)
+                                                val b2 = Brush.radialGradient(listOf(color2.copy(0.8f), color2.copy(0.45f), Color.Transparent), Offset(w*o2x, h*o2y), w*r2)
+                                                val b3 = Brush.radialGradient(listOf(color3.copy(0.75f), color3.copy(0.4f), Color.Transparent), Offset(w*o3x, h*o3y), w*r3)
+                                                val b4 = Brush.radialGradient(listOf(color4.copy(0.7f), color4.copy(0.35f), Color.Transparent), Offset(w*o4x, h*o4y), w*r4)
+                                                val b5 = Brush.radialGradient(listOf(color5.copy(0.65f), color5.copy(0.3f), Color.Transparent), Offset(w*o5x, h*o5y), w*r5)
+                                                val b6 = Brush.radialGradient(listOf(color6.copy(0.6f), color6.copy(0.25f), Color.Transparent), Offset(w*o6x, h*o6y), w*r6)
+                                                onDrawBehind {
+                                                    drawRect(color = base)
+                                                    drawRect(brush = b1)
+                                                    drawRect(brush = b2)
+                                                    drawRect(brush = b3)
+                                                    drawRect(brush = b4)
+                                                    drawRect(brush = b5)
+                                                    drawRect(brush = b6)
+                                                }
                                             }
-                                        }
-                                )
+                                    )
+                                }
                             }
                         }
+                        else -> { /* DEFAULT: no extra background layer */ }
                     }
-                    else -> { /* DEFAULT: no extra background layer */ }
                 }
             }
         },

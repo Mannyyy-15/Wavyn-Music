@@ -207,7 +207,7 @@ fun LyricsScreen(
         if (isFreshPreview) sliderPosition else null
     }
 
-    val playerBackground by rememberEnumPreference(PlayerBackgroundStyleKey, PlayerBackgroundStyle.BLUR)
+    val playerBackground by rememberEnumPreference(PlayerBackgroundStyleKey, PlayerBackgroundStyle.FLUID_MESH)
     val isSystemInDarkTheme = isSystemInDarkTheme()
     val useDarkTheme = isSystemInDarkTheme
 
@@ -217,8 +217,12 @@ fun LyricsScreen(
     val fallbackColor = MaterialTheme.colorScheme.surface.toArgb()
 
     LaunchedEffect(mediaMetadata.id, playerBackground) {
-        if ((playerBackground == PlayerBackgroundStyle.GRADIENT || playerBackground == PlayerBackgroundStyle.GLOW_ANIMATED) && mediaMetadata.thumbnailUrl != null) {
-            val cacheKey = if (playerBackground == PlayerBackgroundStyle.GLOW_ANIMATED) "glow_${mediaMetadata.id}" else mediaMetadata.id
+        if ((playerBackground == PlayerBackgroundStyle.GRADIENT || playerBackground == PlayerBackgroundStyle.GLOW_ANIMATED || playerBackground == PlayerBackgroundStyle.FLUID_MESH) && mediaMetadata.thumbnailUrl != null) {
+            val cacheKey = when (playerBackground) {
+                PlayerBackgroundStyle.GLOW_ANIMATED -> "glow_${mediaMetadata.id}"
+                PlayerBackgroundStyle.FLUID_MESH -> "fluid_${mediaMetadata.id}"
+                else -> mediaMetadata.id
+            }
             val cachedColors = gradientColorsCache[cacheKey]
             if (cachedColors != null) {
                 gradientColors = cachedColors
@@ -240,7 +244,7 @@ fun LyricsScreen(
                             .resizeBitmapArea(100 * 100)
                             .generate()
                     }
-                    val extractedColors = if (playerBackground == PlayerBackgroundStyle.GLOW_ANIMATED) {
+                    val extractedColors = if (playerBackground == PlayerBackgroundStyle.GLOW_ANIMATED || playerBackground == PlayerBackgroundStyle.FLUID_MESH) {
                         listOfNotNull(
                             palette.getVibrantColor(fallbackColor).let { Color(it) },
                             palette.getLightVibrantColor(fallbackColor).let { Color(it) },
@@ -266,16 +270,18 @@ fun LyricsScreen(
 
     val textBackgroundColor = when (playerBackground) {
         PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.onBackground
-        PlayerBackgroundStyle.GRADIENT -> Color.White
-        PlayerBackgroundStyle.BLUR -> Color.White
-        PlayerBackgroundStyle.GLOW_ANIMATED -> Color.White
+        PlayerBackgroundStyle.GRADIENT,
+        PlayerBackgroundStyle.BLUR,
+        PlayerBackgroundStyle.GLOW_ANIMATED,
+        PlayerBackgroundStyle.FLUID_MESH -> Color.White
     }
 
     val iconButtonColor = when (playerBackground) {
         PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.surface
-        PlayerBackgroundStyle.GRADIENT -> Color.Black
-        PlayerBackgroundStyle.BLUR -> Color.Black
-        PlayerBackgroundStyle.GLOW_ANIMATED -> Color.Black
+        PlayerBackgroundStyle.GRADIENT,
+        PlayerBackgroundStyle.BLUR,
+        PlayerBackgroundStyle.GLOW_ANIMATED,
+        PlayerBackgroundStyle.FLUID_MESH -> Color.Black
     }
 
     LaunchedEffect(playbackState) {
@@ -302,6 +308,20 @@ fun LyricsScreen(
     Box(modifier = modifier.fillMaxSize().alpha(backgroundAlpha)) {
         Box(modifier = Modifier.fillMaxSize()) {
             when (playerBackground) {
+                PlayerBackgroundStyle.FLUID_MESH -> {
+                    AnimatedContent(
+                        targetState = gradientColors,
+                        transitionSpec = { fadeIn(tween(1200)) togetherWith fadeOut(tween(1200)) },
+                        label = "FluidMeshAnimatedContent"
+                    ) { colors ->
+                        if (colors.isNotEmpty()) {
+                            FluidMeshPlayerBackground(
+                                colors = colors,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                }
                 PlayerBackgroundStyle.BLUR -> {
                     AnimatedContent(
                         targetState = mediaMetadata.thumbnailUrl,
