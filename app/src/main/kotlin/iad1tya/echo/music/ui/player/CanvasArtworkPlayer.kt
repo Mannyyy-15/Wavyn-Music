@@ -139,14 +139,23 @@ fun CanvasArtworkPlayer(
 
     AndroidView(
         factory = { viewContext ->
-            AspectRatioFrameLayout(viewContext).apply {
+            NonInteractiveFrameLayout(viewContext).apply {
                 layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                val textureView = TextureView(viewContext).apply {
+                val frameLayout = AspectRatioFrameLayout(viewContext).apply {
                     layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    isClickable = false
+                    isFocusable = false
+                    val textureView = TextureView(viewContext).apply {
+                        layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+                        isClickable = false
+                        isFocusable = false
+                    }
+                    addView(textureView)
+                    exoPlayer.setVideoTextureView(textureView)
+                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
                 }
-                addView(textureView)
-                exoPlayer.setVideoTextureView(textureView)
+                addView(frameLayout)
                 setBackgroundColor(android.graphics.Color.TRANSPARENT)
             }
         },
@@ -154,3 +163,15 @@ fun CanvasArtworkPlayer(
         modifier = modifier.alpha(alpha),
     )
 }
+
+private class NonInteractiveFrameLayout(context: android.content.Context) : android.widget.FrameLayout(context) {
+    init {
+        isClickable = false
+        isFocusable = false
+    }
+
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean = false
+    override fun onInterceptTouchEvent(ev: android.view.MotionEvent?): Boolean = false
+    override fun onTouchEvent(ev: android.view.MotionEvent?): Boolean = false
+}
+

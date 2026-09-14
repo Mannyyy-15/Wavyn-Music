@@ -593,7 +593,7 @@ fun BottomSheetPlayer(
                     .fillMaxSize()
                     .background(bottomSheetBackgroundColor)
             ) {
-                if (canvasBackgroundFullscreen && fullscreenCanvasArtwork?.preferredAnimationUrl != null) {
+                if (backgroundAlpha > 0.01f && canvasBackgroundFullscreen && fullscreenCanvasArtwork?.preferredAnimationUrl != null) {
                     val isPlayingCanvas by playerConnection.isPlaying.collectAsState()
                     Box(
                         modifier = Modifier
