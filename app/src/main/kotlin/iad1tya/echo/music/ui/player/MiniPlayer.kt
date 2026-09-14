@@ -5,12 +5,24 @@ import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.draw.shadow
+import kotlinx.coroutines.delay
+import iad1tya.echo.music.constants.DynamicIslandMaxWidth
+import iad1tya.echo.music.constants.DynamicIslandWidthFraction
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
@@ -169,6 +181,89 @@ fun MiniPlayer(
 }
 
 @Composable
+private fun DynamicEqualizerBars(
+    isPlaying: Boolean,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "DynamicIslandEqualizer")
+
+    val bar1Phase by infiniteTransition.animateFloat(
+        initialValue = 0.20f,
+        targetValue = 1.00f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(420, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "eq_bar1"
+    )
+    val bar2Phase by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.95f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(330, easing = LinearOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "eq_bar2"
+    )
+    val bar3Phase by infiniteTransition.animateFloat(
+        initialValue = 0.15f,
+        targetValue = 0.85f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(480, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "eq_bar3"
+    )
+
+    val h1 by animateFloatAsState(
+        targetValue = if (isPlaying) bar1Phase else 0.22f,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "h1"
+    )
+    val h2 by animateFloatAsState(
+        targetValue = if (isPlaying) bar2Phase else 0.22f,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "h2"
+    )
+    val h3 by animateFloatAsState(
+        targetValue = if (isPlaying) bar3Phase else 0.22f,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "h3"
+    )
+
+    Row(
+        modifier = modifier
+            .height(13.dp)
+            .padding(end = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        Box(
+            modifier = Modifier
+                .width(2.5.dp)
+                .fillMaxHeight(h1)
+                .clip(CircleShape)
+                .background(color)
+        )
+        Box(
+            modifier = Modifier
+                .width(2.5.dp)
+                .fillMaxHeight(h2)
+                .clip(CircleShape)
+                .background(color)
+        )
+        Box(
+            modifier = Modifier
+                .width(2.5.dp)
+                .fillMaxHeight(h3)
+                .clip(CircleShape)
+                .background(color)
+        )
+    }
+}
+
+@Composable
 private fun NewMiniPlayer(
     position: Long,
     duration: Long,
@@ -191,10 +286,6 @@ private fun NewMiniPlayer(
     val swipeThumbnail by rememberPreference(iad1tya.echo.music.constants.SwipeThumbnailKey, true)
     val pureBlackMiniPlayer by rememberPreference(PureBlackMiniPlayerKey, false)
     val oldNavbarStyle by rememberPreference(OldNavbarStyleKey, false)
-
-    val miniPlayerWidthFraction = if (oldNavbarStyle) 0.96f else 0.82f
-    val miniPlayerHorizontalPadding = if (oldNavbarStyle) 6.dp else 12.dp
-    val miniPlayerMaxWidth = if (oldNavbarStyle) 560.dp else FloatingCompactMaxWidth
 
     val configuration = LocalConfiguration.current
     val isTabletLandscape = configuration.screenWidthDp >= 600 &&
@@ -236,42 +327,26 @@ private fun NewMiniPlayer(
     var dragStartTime by remember { mutableLongStateOf(0L) }
     var totalDragDistance by remember { mutableFloatStateOf(0f) }
 
-    // Optimized animation spec for smoother, more responsive feel
+    // Optimized spring spec for responsive island physics
     val animationSpec = spring<Float>(
         dampingRatio = Spring.DampingRatioNoBouncy,
         stiffness = Spring.StiffnessHigh,
         visibilityThreshold = 0.1f
     )
 
-    val overlayAlpha by animateFloatAsState(
-        targetValue = if (isPlaying) 0.0f else 0.4f,
-        label = "overlay_alpha",
-        animationSpec = animationSpec
-    )
-
-    /**
-     * Calculates the auto-swipe threshold based on swipe sensitivity.
-     * The formula uses a sigmoid function to determine the threshold dynamically.
-     * Constants:
-     * - -11.44748: Controls the steepness of the sigmoid curve.
-     * - 9.04945: Adjusts the midpoint of the curve.
-     * - 600: Base threshold value in pixels.
-     *
-     * @param swipeSensitivity The sensitivity value (typically between 0 and 1).
-     * @return The calculated auto-swipe threshold in pixels.
-     */
     fun calculateAutoSwipeThreshold(swipeSensitivity: Float): Int {
         return (600 / (1f + kotlin.math.exp(-(-11.44748 * swipeSensitivity + 9.04945)))).roundToInt()
     }
     val autoSwipeThreshold = calculateAutoSwipeThreshold(swipeSensitivity)
+
+    val isEffectivelyPureBlack = pureBlack || pureBlackMiniPlayer
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(MiniPlayerHeight)
             .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-            .padding(horizontal = miniPlayerHorizontalPadding)
-            // Move the swipe detection to the outer box to affect the entire box
+            .padding(horizontal = if (oldNavbarStyle) 8.dp else 12.dp)
             .let { baseModifier ->
                 if (swipeThumbnail) {
                     baseModifier.pointerInput(Unit) {
@@ -291,10 +366,10 @@ private fun NewMiniPlayer(
                             onHorizontalDrag = { _, dragAmount ->
                                 val adjustedDragAmount =
                                     if (layoutDirection == LayoutDirection.Rtl) -dragAmount else dragAmount
-                                val canSkipPrevious = playerConnection.player.previousMediaItemIndex != -1
-                                val canSkipNext = playerConnection.player.nextMediaItemIndex != -1
-                                val allowLeft = adjustedDragAmount < 0 && canSkipNext
-                                val allowRight = adjustedDragAmount > 0 && canSkipPrevious
+                                val canPrev = playerConnection.player.previousMediaItemIndex != -1
+                                val canNext = playerConnection.player.nextMediaItemIndex != -1
+                                val allowLeft = adjustedDragAmount < 0 && canNext
+                                val allowRight = adjustedDragAmount > 0 && canPrev
                                 if (allowLeft || allowRight) {
                                     totalDragDistance += kotlin.math.abs(adjustedDragAmount)
                                     coroutineScope.launch {
@@ -317,7 +392,6 @@ private fun NewMiniPlayer(
 
                                 if (shouldChangeSong) {
                                     val isRightSwipe = currentOffset > 0
-
                                     if (isRightSwipe && canSkipPrevious) {
                                         playerConnection.player.seekToPreviousMediaItem()
                                     } else if (!isRightSwipe && canSkipNext) {
@@ -339,36 +413,60 @@ private fun NewMiniPlayer(
                 }
             }
     ) {
-        // Main MiniPlayer box that moves with swipe
+        // Dynamic Island Capsule
         Box(
             modifier = Modifier
                 .then(
                     if (isTabletLandscape) {
                         Modifier
-                            .width(500.dp)
-                            .align(Alignment.CenterEnd) // Right align
+                            .width(440.dp)
+                            .align(Alignment.CenterEnd)
+                    } else if (oldNavbarStyle) {
+                        Modifier
+                            .fillMaxWidth(0.94f)
+                            .align(Alignment.Center)
                     } else {
                         Modifier
-                            .fillMaxWidth(miniPlayerWidthFraction)
-                            .widthIn(max = miniPlayerMaxWidth)
+                            .fillMaxWidth(DynamicIslandWidthFraction)
+                            .widthIn(max = DynamicIslandMaxWidth)
                             .align(Alignment.Center)
                     }
                 )
-                .height(64.dp) // Circular height
+                .height(58.dp)
                 .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
-                .clip(RoundedCornerShape(28.dp)) // Match floating toolbar roundness
+                .shadow(
+                    elevation = 14.dp,
+                    shape = RoundedCornerShape(29.dp),
+                    ambientColor = Color.Black.copy(alpha = if (isEffectivelyPureBlack) 0.65f else 0.45f),
+                    spotColor = Color.Black.copy(alpha = if (isEffectivelyPureBlack) 0.80f else 0.60f)
+                )
+                .clip(RoundedCornerShape(29.dp))
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        listOf(
+                            Color.White.copy(alpha = if (isEffectivelyPureBlack) 0.18f else 0.28f),
+                            Color.White.copy(alpha = if (isEffectivelyPureBlack) 0.05f else 0.07f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(29.dp)
+                )
                 .then(
-                    if (pureBlack || pureBlackMiniPlayer) {
-                        Modifier.background(Color.Black)
+                    if (isEffectivelyPureBlack) {
+                        Modifier.background(Color(0xFF07080B))
                     } else if (gradientColors.isNotEmpty()) {
                         Modifier.background(
                             Brush.horizontalGradient(
-                                colors = gradientColors
+                                listOf(
+                                    Color(0xF00B0D13),
+                                    gradientColors.first().copy(alpha = 0.35f),
+                                    Color(0xF00B0D13)
+                                )
                             )
                         )
                     } else {
                         Modifier.background(
-                            color = MaterialTheme.colorScheme.surfaceContainer
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f)
                         )
                     }
                 )
@@ -377,43 +475,50 @@ private fun NewMiniPlayer(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                    .padding(start = 8.dp, end = 8.dp),
             ) {
-                // Thumbnail with circular progress indicator (left side)
+                // Dynamic Album Portal (Disc with breathing aura)
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(42.dp)
                 ) {
-                    // Circular progress indicator around the thumbnail
-                    if (duration > 0) {
-                        CircularProgressIndicator(
-                            progress = { (position.toFloat() / duration).coerceIn(0f, 1f) },
-                            modifier = Modifier.size(48.dp),
-                            color = if (gradientColors.isNotEmpty()) Color.White else MaterialTheme.colorScheme.primary,
-                            strokeWidth = 3.dp,
-                            trackColor = if (gradientColors.isNotEmpty()) 
-                                Color.White.copy(alpha = 0.2f)
-                            else 
-                                MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                    val infiniteTransition = rememberInfiniteTransition(label = "portalPulse")
+                    val pulseAlpha by infiniteTransition.animateFloat(
+                        initialValue = 0.15f,
+                        targetValue = 0.50f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1300, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "pulseAlpha"
+                    )
+                    val accentColor = if (gradientColors.isNotEmpty()) {
+                        gradientColors.first()
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    }
+
+                    if (isPlaying) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(accentColor.copy(alpha = pulseAlpha))
                         )
                     }
 
-                    // Thumbnail
+                    // Circular Album Cover Art
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(38.dp)
                             .clip(CircleShape)
                             .border(
                                 width = 1.dp,
-                                color = if (gradientColors.isNotEmpty())
-                                    Color.White.copy(alpha = 0.3f)
-                                else
-                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                                color = Color.White.copy(alpha = 0.30f),
                                 shape = CircleShape
                             )
                     ) {
-                        // Thumbnail background
                         mediaMetadata?.let { metadata ->
                             AsyncImage(
                                 model = metadata.thumbnailUrl,
@@ -428,49 +533,72 @@ private fun NewMiniPlayer(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
-                // Song info - takes most space in the middle
+                // Song Typography & Live Equalizer
                 Column(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 4.dp),
                     verticalArrangement = Arrangement.Center
                 ) {
                     mediaMetadata?.let { metadata ->
                         AnimatedContent(
                             targetState = metadata.title,
                             transitionSpec = { fadeIn() togetherWith fadeOut() },
-                            label = "",
+                            label = "island_title",
                         ) { title ->
                             Text(
                                 text = title,
-                                color = if (gradientColors.isNotEmpty()) Color.White else MaterialTheme.colorScheme.onSurface,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
+                                color = Color.White,
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp),
+                                modifier = Modifier.basicMarquee(
+                                    iterations = 1,
+                                    initialDelayMillis = 3000,
+                                    velocity = 30.dp
+                                ),
                             )
                         }
 
                         if (metadata.artists.any { it.name.isNotBlank() }) {
-                            AnimatedContent(
-                                targetState = metadata.artists.joinToString { it.name },
-                                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                                label = "",
-                            ) { artists ->
-                                Text(
-                                    text = artists,
-                                    color = if (gradientColors.isNotEmpty()) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                    fontSize = 12.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp),
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(top = 1.dp)
+                            ) {
+                                DynamicEqualizerBars(
+                                    isPlaying = isPlaying,
+                                    color = if (gradientColors.isNotEmpty()) {
+                                        gradientColors.first()
+                                    } else {
+                                        MaterialTheme.colorScheme.primary
+                                    }
                                 )
+                                AnimatedContent(
+                                    targetState = metadata.artists.joinToString { it.name },
+                                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                                    label = "island_artists",
+                                ) { artists ->
+                                    Text(
+                                        text = artists,
+                                        color = Color.White.copy(alpha = 0.65f),
+                                        fontSize = 11.5.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.basicMarquee(
+                                            iterations = 1,
+                                            initialDelayMillis = 3000,
+                                            velocity = 30.dp
+                                        ),
+                                    )
+                                }
                             }
                         }
 
                         // Error indicator
-                        androidx.compose.animation.AnimatedVisibility(
+                        AnimatedVisibility(
                             visible = error != null,
                             enter = fadeIn(),
                             exit = fadeOut(),
@@ -486,124 +614,127 @@ private fun NewMiniPlayer(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
-
-                // Previous button
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .tvFocusableHighlight(CircleShape)
-                        .clip(CircleShape)
-                        .border(
-                            width = 1.dp,
-                            color = if (gradientColors.isNotEmpty())
-                                Color.White.copy(alpha = 0.3f)
-                            else
-                                MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                            shape = CircleShape
-                        )
-                        .background(
-                            color = Color.Transparent,
-                            shape = CircleShape
-                        )
-                        .clickable(enabled = canSkipPrevious) {
-                            playerConnection.player.seekToPreviousMediaItem()
-                        }
+                // Tactile Controls
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.skip_previous),
-                        contentDescription = null,
-                        tint = if (canSkipPrevious)
-                            (if (gradientColors.isNotEmpty()) Color.White else MaterialTheme.colorScheme.onSurface)
-                        else
-                            (if (gradientColors.isNotEmpty()) Color.White.copy(alpha = 0.3f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Play/Pause button
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .tvFocusableHighlight(CircleShape)
-                        .clip(CircleShape)
-                        .border(
-                            width = 1.dp,
-                            color = if (gradientColors.isNotEmpty()) 
-                                Color.White.copy(alpha = 0.5f)
-                            else 
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                            shape = CircleShape
-                        )
-                        .background(
-                            color = if (gradientColors.isNotEmpty())
-                                Color.White.copy(alpha = 0.2f)
-                            else
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                            shape = CircleShape
-                        )
-                        .clickable {
-                            if (playbackState == Player.STATE_ENDED) {
-                                playerConnection.player.seekTo(0, 0)
-                                playerConnection.player.playWhenReady = true
-                            } else {
-                                playerConnection.player.togglePlayPause()
-                            }
-                        }
-                ) {
-                    Icon(
-                        painter = painterResource(
-                            if (playbackState == Player.STATE_ENDED) {
-                                R.drawable.replay
-                            } else if (isPlaying) {
-                                R.drawable.pause
-                            } else {
-                                R.drawable.play
-                            }
+                    // Tactile Play/Pause Bubble
+                    var isPlayPressed by remember { mutableStateOf(false) }
+                    val playScale by animateFloatAsState(
+                        targetValue = if (isPlayPressed) 0.86f else 1.0f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMedium
                         ),
-                        contentDescription = null,
-                        tint = if (gradientColors.isNotEmpty()) Color.White else MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        label = "playScale"
                     )
-                }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .graphicsLayer {
+                                scaleX = playScale
+                                scaleY = playScale
+                            }
+                            .tvFocusableHighlight(CircleShape)
+                            .clip(CircleShape)
+                            .border(
+                                width = 1.dp,
+                                color = Color.White.copy(alpha = 0.35f),
+                                shape = CircleShape
+                            )
+                            .background(
+                                color = if (gradientColors.isNotEmpty())
+                                    Color.White.copy(alpha = 0.18f)
+                                else
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+                                shape = CircleShape
+                            )
+                            .clickable {
+                                coroutineScope.launch {
+                                    isPlayPressed = true
+                                    delay(120)
+                                    isPlayPressed = false
+                                }
+                                if (playbackState == Player.STATE_ENDED) {
+                                    playerConnection.player.seekTo(0, 0)
+                                    playerConnection.player.playWhenReady = true
+                                } else {
+                                    playerConnection.player.togglePlayPause()
+                                }
+                            }
+                    ) {
+                        Icon(
+                            painter = painterResource(
+                                if (playbackState == Player.STATE_ENDED) {
+                                    R.drawable.replay
+                                } else if (isPlaying) {
+                                    R.drawable.pause
+                                } else {
+                                    R.drawable.play
+                                }
+                            ),
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
 
-                // Next button
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .tvFocusableHighlight(CircleShape)
-                        .clip(CircleShape)
-                        .border(
-                            width = 1.dp,
-                            color = if (gradientColors.isNotEmpty())
-                                Color.White.copy(alpha = 0.3f)
+                    // Sleek Skip Next
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .tvFocusableHighlight(CircleShape)
+                            .clip(CircleShape)
+                            .clickable(enabled = canSkipNext) {
+                                playerConnection.player.seekToNext()
+                            }
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.skip_next),
+                            contentDescription = null,
+                            tint = if (canSkipNext)
+                                Color.White.copy(alpha = 0.85f)
                             else
-                                MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                            shape = CircleShape
+                                Color.White.copy(alpha = 0.25f),
+                            modifier = Modifier.size(19.dp)
                         )
-                        .background(
-                            color = Color.Transparent,
-                            shape = CircleShape
-                        )
-                        .clickable(enabled = canSkipNext) {
-                            playerConnection.player.seekToNext()
-                        }
+                    }
+                }
+            }
+
+            // Contour Hairline Progress Bar
+            if (duration > 0) {
+                val progressFraction = (position.toFloat() / duration).coerceIn(0f, 1f)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.5.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(Color.White.copy(alpha = 0.08f))
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.skip_next),
-                        contentDescription = null,
-                        tint = if (canSkipNext)
-                            (if (gradientColors.isNotEmpty()) Color.White else MaterialTheme.colorScheme.onSurface)
-                        else
-                            (if (gradientColors.isNotEmpty()) Color.White.copy(alpha = 0.3f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)),
-                        modifier = Modifier.size(20.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(progressFraction)
+                            .fillMaxHeight()
+                            .background(
+                                Brush.horizontalGradient(
+                                    if (gradientColors.isNotEmpty()) {
+                                        listOf(
+                                            gradientColors.first(),
+                                            Color.White.copy(alpha = 0.90f)
+                                        )
+                                    } else {
+                                        listOf(
+                                            MaterialTheme.colorScheme.primary,
+                                            Color.White.copy(alpha = 0.90f)
+                                        )
+                                    }
+                                )
+                            )
                     )
                 }
             }
