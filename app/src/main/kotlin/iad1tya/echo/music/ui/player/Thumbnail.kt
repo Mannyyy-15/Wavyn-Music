@@ -424,7 +424,7 @@ fun Thumbnail(
                                 ?: item.mediaMetadata.subtitle?.toString().orEmpty()
                         val songTitle = normalizeCanvasSongTitle(songTitleRaw)
                         val artistName = normalizeCanvasArtistName(artistNameRaw)
-                        linkedSetOf(
+                        val primary = linkedSetOf(
                             songTitle to artistName,
                             songTitleRaw to artistName,
                             songTitle to artistNameRaw,
@@ -437,6 +437,17 @@ fun Thumbnail(
                                     storefront = storefront
                                 )?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
                             }
+
+                        primary ?: run {
+                            val spotifyId = try {
+                                iad1tya.echo.music.spotify.SpotifyCacheDatabase.getInstance().getSpotifyIdByVideoId(item.mediaId)
+                            } catch (_: Throwable) {
+                                null
+                            }
+                            if (spotifyId != null) {
+                                iad1tya.echo.music.canvas.WavynCanvas.getBySpotifyTrackId(spotifyId)
+                            } else null
+                        }
                     }
                     canvasArtwork = fetched
                     if (fetched != null) {

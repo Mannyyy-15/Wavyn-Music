@@ -115,6 +115,33 @@ object WavynCanvas {
         return value
     }
 
+    suspend fun getBySpotifyTrackId(spotifyTrackId: String): CanvasArtwork? {
+        val key = cacheKey("sp", spotifyTrackId)
+        cache[key]?.let { entry ->
+            if (entry.expiresAtMs > System.currentTimeMillis()) return entry.value
+            cache.remove(key)
+        }
+
+        val token = iad1tya.echo.music.spotify.SpotifyAuthManager.getValidAccessToken()
+        val canvasUrl = if (token != null) {
+            iad1tya.echo.music.spotify.SpotifyApiService.getTrackCanvas(token, spotifyTrackId)
+        } else null
+
+        val value = if (!canvasUrl.isNullOrBlank()) {
+            CanvasArtwork(
+                videoUrl = canvasUrl,
+                animated = canvasUrl
+            )
+        } else null
+
+        cache[key] = CacheEntry(
+            value = value,
+            expiresAtMs = System.currentTimeMillis() + ttlMs,
+        )
+
+        return value
+    }
+
     private fun cacheKey(prefix: String, vararg parts: String): String {
         val normalized = parts
             .map { it.trim().lowercase(Locale.ROOT) }

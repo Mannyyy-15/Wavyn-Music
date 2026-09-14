@@ -138,40 +138,6 @@ object SpotifyApiService {
             Log.w(TAG, "getMe profileAttributes exception: ${e.message}")
         }
 
-        // 2. Fallback to REST /me
-        try {
-            val request = buildRequest("$BASE_URL/me", accessToken)
-            val response = client.newCall(request).execute()
-            if (response.isSuccessful) {
-                val body = response.body?.string() ?: return@withContext null
-                val json = gson.fromJson(body, JsonObject::class.java)
-
-                val id = json.get("id")?.asString ?: ""
-                val displayName = json.get("display_name")?.asString ?: "Spotify User"
-                val email = json.get("email")?.asString
-                val product = json.get("product")?.asString
-                val followers = json.getAsJsonObject("followers")?.get("total")?.asInt ?: 0
-                val images = json.getAsJsonArray("images")
-                val avatarUrl = if (images != null && images.size() > 0) {
-                    images.get(0).asJsonObject.get("url")?.asString
-                } else null
-
-                if (!displayName.equals("Micael Widell", ignoreCase = true) && id != "me") {
-                    Log.i(TAG, "getMe resolved via REST: $displayName ($id)")
-                    return@withContext SpotifyUser(
-                        id = id,
-                        displayName = displayName,
-                        email = email,
-                        avatarUrl = resolveSpotifyImageUrl(avatarUrl),
-                        product = product,
-                        followersCount = followers
-                    )
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "getMe REST exception: ${e.message}", e)
-        }
-
         null
     }
 
@@ -807,4 +773,43 @@ object SpotifyApiService {
         "summer", "swedish", "synth-pop", "tango", "techno", "trance", "trip-hop",
         "turkish", "work-out", "world-music"
     )
+
+    /**
+     * Resolves the Spotify Canvas video stream URL for a given track.
+     * Uses Spotify's Canvaz Cache endpoint on spclient.wg.spotify.com.
+     */
+    suspend fun getTrackCanvas(accessToken: String, spotifyTrackId: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val cleanId = spotifyTrackId.removePrefix("spotify:track:")
+            val url = "$SPCLIENT_BASE/canvaz-cache/v0/canvases"
+            val requestJson = JsonObject().apply {
+                val tracksArray = JsonArray().apply {
+                    val trackObj = JsonObject().apply {
+                        addProperty("track_uri", "spotify:track:$cleanId")
+                    }
+                    add(trackObj)
+                }
+                add("tracks", tracksArray)
+            }
+
+            val request = buildHeaders(Request.Builder().url(url), accessToken)
+                .post(requestJson.toString().toRequestBody(JSON_MEDIA_TYPE))
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val bodyString = response.body?.string() ?: return@withContext null
+                val root = gson.fromJson(bodyString, JsonObject::class.java)
+                val canvases = root.getAsJsonArray("canvases") ?: return@withContext null
+                if (canvases.size() > 0) {
+                    val first = canvases.get(0).asJsonObject
+                    return@withContext first.get("canvas_url")?.asString
+                }
+                null
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error fetching Spotify canvas: ${e.message}")
+            null
+        }
+    }
 }

@@ -201,9 +201,6 @@ fun NavGraphBuilder.navigationBuilder(
     composable("stats") {
         StatsScreen(navController)
     }
-    composable("spotify_import") {
-        SpotifyImportScreen(navController)
-    }
     composable("spotify_login") {
         iad1tya.echo.music.ui.screens.spotify.SpotifyLoginScreen(navController)
     }

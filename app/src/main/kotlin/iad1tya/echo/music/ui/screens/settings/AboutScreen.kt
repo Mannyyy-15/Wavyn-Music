@@ -50,6 +50,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.automirrored.rounded.*
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -288,7 +289,7 @@ fun AboutScreen(
             shape = RoundedCornerShape(20.dp)
         ) {
             SocialLinkItem(
-                icon = rememberVectorPainter(Icons.Rounded.Send),
+                icon = rememberVectorPainter(Icons.AutoMirrored.Rounded.Send),
                 title = "Telegram",
                 subtitle = "Follow for updates",
                 onClick = { uriHandler.openUri("https://t.me/WavynMusicApp") }
@@ -477,7 +478,7 @@ fun AboutScreen(
                     onLongClick = navController::backToMain,
                 ) {
                     Icon(
-                        painter = rememberVectorPainter(Icons.Rounded.ArrowBack),
+                        painter = rememberVectorPainter(Icons.AutoMirrored.Rounded.ArrowBack),
                         contentDescription = null,
                     )
                 }
@@ -542,7 +543,7 @@ private fun BuyMeCoffeeItem(
         }
         
         Icon(
-            painter = rememberVectorPainter(Icons.Rounded.NavigateNext),
+            painter = rememberVectorPainter(Icons.AutoMirrored.Rounded.NavigateNext),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             modifier = Modifier.size(20.dp)
@@ -610,7 +611,7 @@ private fun SocialLinkItem(
         }
         
         Icon(
-            painter = rememberVectorPainter(Icons.Rounded.NavigateNext),
+            painter = rememberVectorPainter(Icons.AutoMirrored.Rounded.NavigateNext),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             modifier = Modifier.size(20.dp)

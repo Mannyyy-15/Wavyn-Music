@@ -67,6 +67,27 @@ class SpotifyCacheDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME
         null
     }
 
+    suspend fun getSpotifyIdByVideoId(videoId: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val db = readableDatabase
+            val cursor = db.query(
+                TABLE_NAME,
+                arrayOf("spotify_id"),
+                "video_id = ?",
+                arrayOf(videoId),
+                null,
+                null,
+                null
+            )
+            cursor.use {
+                if (it.moveToFirst()) {
+                    return@withContext it.getString(0)
+                }
+            }
+        } catch (_: Exception) {}
+        null
+    }
+
     suspend fun saveMapping(
         spotifyId: String,
         videoId: String,

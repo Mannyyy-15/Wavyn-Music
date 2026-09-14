@@ -12,6 +12,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Logout
+import androidx.compose.material.icons.automirrored.rounded.TrendingUp
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -189,7 +191,7 @@ fun SpotifyHubScreen(
                         }
                     ) {
                         Icon(
-                            painter = rememberVectorPainter(Icons.Rounded.Logout),
+                            painter = rememberVectorPainter(Icons.AutoMirrored.Rounded.Logout),
                             contentDescription = "Logout"
                         )
                     }
@@ -429,7 +431,7 @@ fun SpotifyHubScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
-                                            painter = rememberVectorPainter(Icons.Rounded.TrendingUp),
+                                            painter = rememberVectorPainter(Icons.AutoMirrored.Rounded.TrendingUp),
                                             contentDescription = null,
                                             tint = Color.Black,
                                             modifier = Modifier.size(24.dp)
@@ -591,22 +593,15 @@ fun SpotifyHubScreen(
                                         )
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
                                             if (playlist.isCollaborative) {
-                                                Surface(
-                                                    shape = RoundedCornerShape(4.dp),
-                                                    color = Color(0xFF1DB954).copy(alpha = 0.2f)
-                                                ) {
-                                                    Text(
-                                                        text = "COLLAB",
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = Color(0xFF1DB954),
-                                                        fontWeight = FontWeight.Bold,
-                                                        fontSize = 9.sp,
-                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                                    )
-                                                }
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(6.dp)
+                                                        .clip(CircleShape)
+                                                        .background(Color(0xFF1DB954))
+                                                )
                                             }
                                             Text(
                                                 text = if (playlist.trackCount > 0) "${playlist.trackCount} songs" else if (!playlist.ownerName.isNullOrBlank()) "By ${playlist.ownerName}" else "Spotify",

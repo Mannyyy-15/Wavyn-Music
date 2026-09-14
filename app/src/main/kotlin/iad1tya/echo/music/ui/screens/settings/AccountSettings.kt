@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.automirrored.rounded.NavigateNext
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ButtonDefaults
@@ -712,7 +713,7 @@ fun AccountSettings(
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Icon(
-                            painter = rememberVectorPainter(Icons.Rounded.PlaylistAdd),
+                            painter = rememberVectorPainter(Icons.AutoMirrored.Rounded.PlaylistAdd),
                             contentDescription = null,
                             modifier = Modifier.size(22.dp),
                             tint = if (ytmSync) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant

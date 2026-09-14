@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.automirrored.rounded.*
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
@@ -445,7 +446,7 @@ fun SupporterScreen(
                     onLongClick = navController::backToMain,
                 ) {
                     Icon(
-                        painter = rememberVectorPainter(Icons.Rounded.ArrowBack),
+                        painter = rememberVectorPainter(Icons.AutoMirrored.Rounded.ArrowBack),
                         contentDescription = null,
                     )
                 }
@@ -509,7 +510,7 @@ private fun BuyMeCoffeeItem(
         }
         
         Icon(
-            painter = rememberVectorPainter(Icons.Rounded.NavigateNext),
+            painter = rememberVectorPainter(Icons.AutoMirrored.Rounded.NavigateNext),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             modifier = Modifier.size(20.dp)
@@ -576,7 +577,7 @@ private fun SupportOptionItem(
         }
         
         Icon(
-            painter = rememberVectorPainter(Icons.Rounded.NavigateNext),
+            painter = rememberVectorPainter(Icons.AutoMirrored.Rounded.NavigateNext),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             modifier = Modifier.size(20.dp)

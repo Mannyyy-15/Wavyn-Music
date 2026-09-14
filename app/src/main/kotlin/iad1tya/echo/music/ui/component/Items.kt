@@ -767,20 +767,13 @@ fun SpotifyPlaylistItem(
     },
     badges = {
         if (playlist.isCollaborative) {
-            androidx.compose.material3.Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = androidx.compose.ui.graphics.Color(0xFF1DB954).copy(alpha = 0.2f),
-                modifier = Modifier.padding(end = 4.dp)
-            ) {
-                Text(
-                    text = "COLLAB",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = androidx.compose.ui.graphics.Color(0xFF1DB954),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 9.sp,
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                )
-            }
+            Box(
+                modifier = Modifier
+                    .padding(end = 6.dp)
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(androidx.compose.ui.graphics.Color(0xFF1DB954))
+            )
         }
     },
     thumbnailContent = {
@@ -848,20 +841,13 @@ fun SpotifyPlaylistGridItem(
     },
     badges = {
         if (playlist.isCollaborative) {
-            androidx.compose.material3.Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = androidx.compose.ui.graphics.Color(0xFF1DB954).copy(alpha = 0.2f),
-                modifier = Modifier.padding(end = 4.dp)
-            ) {
-                Text(
-                    text = "COLLAB",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = androidx.compose.ui.graphics.Color(0xFF1DB954),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 9.sp,
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                )
-            }
+            Box(
+                modifier = Modifier
+                    .padding(end = 6.dp)
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(androidx.compose.ui.graphics.Color(0xFF1DB954))
+            )
         }
     },
     thumbnailContent = {

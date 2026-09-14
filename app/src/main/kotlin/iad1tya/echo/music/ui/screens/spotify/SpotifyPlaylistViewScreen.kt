@@ -10,9 +10,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Shuffle
+import androidx.core.net.toUri
+import androidx.media3.exoplayer.offline.DownloadRequest
+import androidx.media3.exoplayer.offline.DownloadService
+import iad1tya.echo.music.LocalDatabase
+import iad1tya.echo.music.db.entities.PlaylistEntity
+import iad1tya.echo.music.db.entities.PlaylistSongMap
+import iad1tya.echo.music.playback.ExoDownloadService
+import java.time.LocalDateTime
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -54,6 +63,9 @@ fun SpotifyPlaylistViewScreen(
     var tracks by remember { mutableStateOf<List<SpotifyTrack>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var resolvingIndex by remember { mutableStateOf<Int?>(null) }
+    val database = LocalDatabase.current
+    var isImportingToLocal by remember { mutableStateOf(false) }
+    var isDownloadingPlaylist by remember { mutableStateOf(false) }
 
     LaunchedEffect(playlistId) {
         isLoading = true
@@ -208,7 +220,7 @@ fun SpotifyPlaylistViewScreen(
                         // Controls Row
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Button(
@@ -245,6 +257,121 @@ fun SpotifyPlaylistViewScreen(
                                     painter = rememberVectorPainter(Icons.Rounded.Shuffle),
                                     contentDescription = "Shuffle"
                                 )
+                            }
+
+                            // 1-Tap Import to Local Library
+                            FilledTonalIconButton(
+                                onClick = {
+                                    if (tracks.isEmpty() || isImportingToLocal) return@FilledTonalIconButton
+                                    scope.launch {
+                                        isImportingToLocal = true
+                                        Toast.makeText(context, "Importing to Library...", Toast.LENGTH_SHORT).show()
+                                        try {
+                                            val resolvedList = mutableListOf<iad1tya.echo.music.models.MediaMetadata>()
+                                            for (track in tracks) {
+                                                val resolved = SpotifyTrackResolver.resolveTrack(track)
+                                                if (resolved != null) {
+                                                    resolvedList.add(resolved)
+                                                }
+                                            }
+                                            if (resolvedList.isNotEmpty()) {
+                                                database.transaction {
+                                                    val playlistEntity = PlaylistEntity(
+                                                        name = playlistTitle,
+                                                        browseId = null,
+                                                        thumbnailUrl = playlistCover,
+                                                        isEditable = true,
+                                                        bookmarkedAt = LocalDateTime.now(),
+                                                    )
+                                                    insert(playlistEntity)
+                                                    resolvedList.forEachIndexed { index, mediaMetadata ->
+                                                        insert(mediaMetadata)
+                                                        insert(
+                                                            PlaylistSongMap(
+                                                                songId = mediaMetadata.id,
+                                                                playlistId = playlistEntity.id,
+                                                                position = index,
+                                                            )
+                                                        )
+                                                    }
+                                                }
+                                                Toast.makeText(context, "Imported ${resolvedList.size} songs to Library!", Toast.LENGTH_LONG).show()
+                                            } else {
+                                                Toast.makeText(context, "Could not match songs for import", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Import failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        } finally {
+                                            isImportingToLocal = false
+                                        }
+                                    }
+                                },
+                                enabled = !isImportingToLocal,
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                if (isImportingToLocal) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        painter = rememberVectorPainter(Icons.AutoMirrored.Rounded.PlaylistAdd),
+                                        contentDescription = "Import to Local"
+                                    )
+                                }
+                            }
+
+                            // Make Available Offline / Download
+                            FilledTonalIconButton(
+                                onClick = {
+                                    if (tracks.isEmpty() || isDownloadingPlaylist) return@FilledTonalIconButton
+                                    scope.launch {
+                                        isDownloadingPlaylist = true
+                                        Toast.makeText(context, "Resolving tracks for offline download...", Toast.LENGTH_SHORT).show()
+                                        try {
+                                            var count = 0
+                                            for (track in tracks) {
+                                                val resolved = SpotifyTrackResolver.resolveTrack(track)
+                                                if (resolved != null) {
+                                                    database.query {
+                                                        insert(resolved)
+                                                    }
+                                                    val downloadRequest = DownloadRequest.Builder(resolved.id, "echo://${resolved.id}".toUri())
+                                                        .setCustomCacheKey(resolved.id)
+                                                        .setData(resolved.title.toByteArray())
+                                                        .build()
+                                                    DownloadService.sendAddDownload(
+                                                        context,
+                                                        ExoDownloadService::class.java,
+                                                        downloadRequest,
+                                                        false
+                                                    )
+                                                    count++
+                                                }
+                                            }
+                                            Toast.makeText(context, "Queued $count songs for download!", Toast.LENGTH_SHORT).show()
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Download failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        } finally {
+                                            isDownloadingPlaylist = false
+                                        }
+                                    }
+                                },
+                                enabled = !isDownloadingPlaylist,
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                if (isDownloadingPlaylist) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        painter = rememberVectorPainter(Icons.Rounded.Download),
+                                        contentDescription = "Make Available Offline"
+                                    )
+                                }
                             }
                         }
                     }

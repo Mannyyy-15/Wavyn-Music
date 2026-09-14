@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.automirrored.rounded.*
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -351,7 +352,7 @@ fun PlayerSettings(
 
         SwitchPreference(
             title = { Text(stringResource(R.string.audio_normalization)) },
-            icon = { Icon(rememberVectorPainter(Icons.Rounded.VolumeUp), null) },
+            icon = { Icon(rememberVectorPainter(Icons.AutoMirrored.Rounded.VolumeUp), null) },
             checked = audioNormalization,
             onCheckedChange = onAudioNormalizationChange
         )
@@ -389,7 +390,7 @@ fun PlayerSettings(
             val preampOptions = listOf(-8f, -4f, 0f, 4f, 8f)
             ListPreference(
                 title = { Text("Preamp gain") },
-                icon = { Icon(rememberVectorPainter(Icons.Rounded.VolumeUp), null) },
+                icon = { Icon(rememberVectorPainter(Icons.AutoMirrored.Rounded.VolumeUp), null) },
                 selectedValue = preampOptions.minByOrNull { kotlin.math.abs(it - proEqGain) } ?: 0f,
                 values = preampOptions,
                 valueText = { "${it.roundToInt()} dB" },
@@ -497,7 +498,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text("Pause on mute") },
             description = "Pause playback when volume is muted",
-            icon = { Icon(rememberVectorPainter(Icons.Rounded.VolumeOff), null) },
+            icon = { Icon(rememberVectorPainter(Icons.AutoMirrored.Rounded.VolumeOff), null) },
             checked = pauseOnMute,
             onCheckedChange = onPauseOnMuteChange
         )
@@ -513,7 +514,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.seek_seconds_addup)) },
             description = stringResource(R.string.seek_seconds_addup_description),
-            icon = { Icon(rememberVectorPainter(Icons.Rounded.ArrowForward), null) },
+            icon = { Icon(rememberVectorPainter(Icons.AutoMirrored.Rounded.ArrowForward), null) },
             checked = seekExtraSeconds,
             onCheckedChange = onSeekExtraSeconds
         )
@@ -523,7 +524,7 @@ fun PlayerSettings(
 
         PreferenceEntry(
             title = { Text("Queue & Downloads") },
-            icon = { Icon(rememberVectorPainter(Icons.Rounded.QueueMusic), null) },
+            icon = { Icon(rememberVectorPainter(Icons.AutoMirrored.Rounded.QueueMusic), null) },
             trailingContent = {
                 Icon(
                     painter = rememberVectorPainter(if (showQueueDownloadsSection) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore),
@@ -539,7 +540,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.persistent_queue)) },
             description = stringResource(R.string.persistent_queue_desc),
-            icon = { Icon(rememberVectorPainter(Icons.Rounded.QueueMusic), null) },
+            icon = { Icon(rememberVectorPainter(Icons.AutoMirrored.Rounded.QueueMusic), null) },
             checked = persistentQueue,
             onCheckedChange = onPersistentQueueChange
         )
@@ -563,7 +564,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.auto_load_more)) },
             description = stringResource(R.string.auto_load_more_desc),
-            icon = { Icon(rememberVectorPainter(Icons.Rounded.PlaylistAdd), null) },
+            icon = { Icon(rememberVectorPainter(Icons.AutoMirrored.Rounded.PlaylistAdd), null) },
             checked = autoLoadMore,
             onCheckedChange = onAutoLoadMoreChange
         )
@@ -774,7 +775,7 @@ fun PlayerSettings(
                     onLongClick = navController::backToMain
                 ) {
                     Icon(
-                        rememberVectorPainter(Icons.Rounded.ArrowBack),
+                        rememberVectorPainter(Icons.AutoMirrored.Rounded.ArrowBack),
                         contentDescription = null
                     )
                 }

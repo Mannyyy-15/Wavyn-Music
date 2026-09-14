@@ -88,10 +88,29 @@ object SpotifyTrackResolver {
 
     /**
      * Prefetches upcoming tracks in background so skipping is instantaneous.
+     * Intelligent Network Awareness:
+     * - Wi-Fi / Ethernet: Prefetches up to 10 upcoming tracks
+     * - Mobile Data: Prefetches up to 3 upcoming tracks to preserve bandwidth
      */
-    fun prefetchUpcoming(scope: CoroutineScope, tracks: List<SpotifyTrack>, startIndex: Int, count: Int = 4) {
+    fun prefetchUpcoming(
+        scope: CoroutineScope,
+        tracks: List<SpotifyTrack>,
+        startIndex: Int,
+        count: Int? = null
+    ) {
+        val targetCount = count ?: run {
+            val isWifi = try {
+                iad1tya.echo.music.utils.potoken.AppContextHolder.appContext.let { ctx ->
+                    iad1tya.echo.music.utils.isWifiConnected(ctx)
+                }
+            } catch (_: Throwable) {
+                false
+            }
+            if (isWifi) 10 else 3
+        }
+
         scope.launch(Dispatchers.IO) {
-            val slice = tracks.drop(startIndex).take(count)
+            val slice = tracks.drop(startIndex).take(targetCount)
             slice.forEach { track ->
                 if (cacheDb.getMappedVideoId(track.id) == null) {
                     resolveTrack(track)

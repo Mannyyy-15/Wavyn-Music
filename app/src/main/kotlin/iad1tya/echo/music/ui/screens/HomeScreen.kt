@@ -769,22 +769,15 @@ fun HomeScreen(
                                     )
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
                                         if (sp.isCollaborative) {
-                                            androidx.compose.material3.Surface(
-                                                shape = RoundedCornerShape(4.dp),
-                                                color = Color(0xFF1DB954).copy(alpha = 0.2f)
-                                            ) {
-                                                Text(
-                                                    text = "COLLAB",
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = Color(0xFF1DB954),
-                                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                                                    fontSize = 8.sp,
-                                                    modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp)
-                                                )
-                                            }
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(0xFF1DB954))
+                                            )
                                         }
                                         Text(
                                             text = if (sp.trackCount > 0) "${sp.trackCount} songs" else if (!sp.ownerName.isNullOrBlank() && !sp.ownerName.equals("Micael Widell", ignoreCase = true) && sp.ownerName != "me") "By ${sp.ownerName}" else "Spotify",
