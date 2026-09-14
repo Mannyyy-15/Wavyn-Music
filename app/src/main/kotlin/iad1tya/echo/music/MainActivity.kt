@@ -851,15 +851,7 @@ class MainActivity : ComponentActivity() {
                             if (slimNav) SlimFloatingToolbarHeight else FloatingToolbarHeight
                         }
 
-                    val getNavPadding: () -> Dp = remember(shouldShowNavigationBar, showRail, slimNav) {
-                        {
-                            if (shouldShowNavigationBar && !showRail) {
-                                navVisibleHeight + floatingBarsBottomPadding
-                            } else {
-                                0.dp
-                            }
-                        }
-                    }
+                    val livingPlayerHeight = 56.dp
 
                     val targetNavBarHeight = navVisibleHeight
 
@@ -872,24 +864,52 @@ class MainActivity : ComponentActivity() {
                     val playerBottomSheetState =
                         rememberBottomSheetState(
                             dismissedBound = 0.dp,
-                            collapsedBound = bottomInset +
-                                (if (!showRail && shouldShowNavigationBar) getNavPadding() else 0.dp) +
-                                (if (shouldShowMiniPlayer && useNewMiniPlayerDesign) MiniPlayerBottomSpacing else 0.dp) +
-                                (if (shouldShowMiniPlayer) MiniPlayerHeight else 0.dp),
+                            collapsedBound = if (oldNavbarStyle) {
+                                bottomInset +
+                                    (if (!showRail && shouldShowNavigationBar) (navVisibleHeight + floatingBarsBottomPadding) else 0.dp) +
+                                    (if (shouldShowMiniPlayer && useNewMiniPlayerDesign) MiniPlayerBottomSpacing else 0.dp) +
+                                    (if (shouldShowMiniPlayer) MiniPlayerHeight else 0.dp)
+                            } else {
+                                0.dp
+                            },
                             expandedBound = maxHeight,
                         )
+
+                    val hasActiveSong = shouldShowMiniPlayer && !playerBottomSheetState.isDismissed
+
+                    val currentDockHeight by animateDpAsState(
+                        targetValue = navVisibleHeight + (if (hasActiveSong && !oldNavbarStyle) livingPlayerHeight else 0.dp),
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
+                        label = "CurrentDockHeight"
+                    )
+
+                    val getNavPadding: () -> Dp = remember(shouldShowNavigationBar, showRail, currentDockHeight) {
+                        {
+                            if (shouldShowNavigationBar && !showRail) {
+                                currentDockHeight + floatingBarsBottomPadding
+                            } else {
+                                0.dp
+                            }
+                        }
+                    }
 
                     val playerAwareWindowInsets = remember(
                         bottomInset,
                         shouldShowNavigationBar,
                         playerBottomSheetState.isDismissed,
                         showRail,
+                        hasActiveSong,
+                        oldNavbarStyle,
+                        currentDockHeight,
                     ) {
                         var bottom = bottomInset
                         if (shouldShowNavigationBar && !showRail) {
                             bottom += getNavPadding()
                         }
-                        if (!playerBottomSheetState.isDismissed && shouldShowMiniPlayer) {
+                        if (oldNavbarStyle && !playerBottomSheetState.isDismissed && shouldShowMiniPlayer) {
                             bottom += MiniPlayerHeight + MiniPlayerBottomSpacing
                         }
                         windowsInsets
@@ -1504,7 +1524,7 @@ class MainActivity : ComponentActivity() {
                                                 navController = navController,
                                                 pureBlack = pureBlack
                                             )
-                                            val navSlideDistance = bottomInset + floatingBarsBottomPadding + navVisibleHeight
+                                            val navSlideDistance = bottomInset + floatingBarsBottomPadding + currentDockHeight
                                             Box(
                                                 modifier = Modifier
                                                     .align(Alignment.BottomCenter)
@@ -1623,7 +1643,7 @@ class MainActivity : ComponentActivity() {
                                                                 bottom = bottomInset + floatingBarsBottomPadding,
                                                             )
                                                             .fillMaxWidth()
-                                                            .height(navVisibleHeight),
+                                                            .height(currentDockHeight),
                                                         onTabSelected = { screen ->
                                                             onNavItemClick(screen, isNavItemSelected(screen))
                                                         },
@@ -1631,6 +1651,9 @@ class MainActivity : ComponentActivity() {
                                                             if (screen == Screens.Home) {
                                                                 showErrorLogDialog = true
                                                             }
+                                                        },
+                                                        onExpandPlayer = {
+                                                            playerBottomSheetState.expandSoft()
                                                         },
                                                     )
                                                 }
