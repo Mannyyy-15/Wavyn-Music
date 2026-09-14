@@ -851,79 +851,25 @@ object SpotifyApiService {
     }
 
     /**
-     * Fetches the user's dynamic Spotify Daylist playlist.
-     * Queries GraphQL fetchPlaylist with URI spotify:playlist:37i9dQZF1EP6YuccBxUcC1.
-     * Returns Pair of (dynamicTitle, list of tracks).
+     * Searches Spotify catalog for a track and returns its Spotify track ID.
      */
-    suspend fun getDaylist(accessToken: String): Pair<String, List<SpotifyTrack>>? = withContext(Dispatchers.IO) {
+    suspend fun searchTrackId(accessToken: String, query: String): String? = withContext(Dispatchers.IO) {
         try {
-            val variables = JsonObject().apply {
-                addProperty("uri", "spotify:playlist:37i9dQZF1EP6YuccBxUcC1")
-                addProperty("offset", 0)
-                addProperty("limit", 50)
-                addProperty("enableWatchFeedEntrypoint", true)
-            }
-
-            val gqlResult = executeGraphQL(accessToken, "fetchPlaylist", HASH_FETCH_PLAYLIST, variables)
-            if (gqlResult != null && gqlResult.has("data")) {
-                val playlistV2 = gqlResult.getAsJsonObject("data")?.getAsJsonObject("playlistV2")
-                val dynamicTitle = playlistV2?.get("name")?.asString ?: "Daylist"
-                val content = playlistV2?.getAsJsonObject("content")
-                val items = content?.getAsJsonArray("items")
-
-                if (items != null && items.size() > 0) {
-                    val tracks = mutableListOf<SpotifyTrack>()
-                    for (elem in items) {
-                        val itemWrapper = elem.asJsonObject ?: continue
-                        val itemV2 = itemWrapper.getAsJsonObject("itemV2") ?: continue
-                        val trackData = itemV2.getAsJsonObject("data") ?: continue
-                        val typename = trackData.get("__typename")?.asString ?: ""
-                        if (typename != "Track" && typename != "Episode" && typename.isNotBlank()) continue
-
-                        val uri = trackData.get("uri")?.asString ?: itemV2.get("_uri")?.asString ?: continue
-                        val id = uri.removePrefix("spotify:track:").removePrefix("spotify:episode:").trim()
-                        val name = trackData.get("name")?.asString ?: continue
-                        val durationMs = trackData.getAsJsonObject("trackDuration")?.get("totalMilliseconds")?.asLong
-                            ?: trackData.getAsJsonObject("duration")?.get("totalMilliseconds")?.asLong
-                            ?: trackData.get("duration_ms")?.asLong ?: 0L
-
-                        val artists = mutableListOf<String>()
-                        val artistsItems = trackData.getAsJsonObject("artists")?.getAsJsonArray("items")
-                        if (artistsItems != null) {
-                            for (art in artistsItems) {
-                                val artName = art.asJsonObject?.getAsJsonObject("profile")?.get("name")?.asString
-                                if (!artName.isNullOrBlank()) artists.add(artName)
-                            }
-                        }
-
-                        val albumObj = trackData.getAsJsonObject("albumOfTrack")
-                        val albumName = albumObj?.get("name")?.asString
-                        var albumArtUrl: String? = null
-                        val coverSources = albumObj?.getAsJsonObject("coverArt")?.getAsJsonArray("sources")
-                        if (coverSources != null && coverSources.size() > 0) {
-                            albumArtUrl = coverSources.get(0).asJsonObject.get("url")?.asString
-                        }
-
-                        tracks.add(
-                            SpotifyTrack(
-                                id = id,
-                                title = name,
-                                artists = if (artists.isNotEmpty()) artists else listOf("Spotify Artist"),
-                                albumName = albumName,
-                                albumArtUrl = resolveSpotifyImageUrl(albumArtUrl),
-                                durationMs = durationMs
-                            )
-                        )
-                    }
-
-                    if (tracks.isNotEmpty()) {
-                        Log.i(TAG, "Daylist resolved: $dynamicTitle with ${tracks.size} tracks")
-                        return@withContext Pair(dynamicTitle, tracks)
-                    }
+            val encodedQuery = java.net.URLEncoder.encode(query, "UTF-8")
+            val url = "$BASE_URL/search?type=track&limit=1&q=$encodedQuery"
+            val request = buildRequest(url, accessToken)
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val bodyString = response.body?.string() ?: return@withContext null
+                val root = gson.fromJson(bodyString, JsonObject::class.java)
+                val tracks = root.getAsJsonObject("tracks")?.getAsJsonArray("items")
+                if (tracks != null && tracks.size() > 0) {
+                    val first = tracks.get(0).asJsonObject
+                    return@withContext first.get("id")?.asString
                 }
             }
         } catch (e: Exception) {
-            Log.w(TAG, "getDaylist exception: ${e.message}")
+            Log.w(TAG, "searchTrackId failed for '$query': ${e.message}")
         }
         null
     }

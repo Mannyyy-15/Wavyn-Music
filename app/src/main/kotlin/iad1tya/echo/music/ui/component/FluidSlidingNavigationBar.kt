@@ -46,39 +46,39 @@ fun FluidSlidingNavigationBar(
 ) {
     val selectedIndex = items.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
 
-    val dockGradient = if (pureBlack) {
-        listOf(Color(0xF5101116), Color(0xF508080B))
+    val dockBgColor = if (pureBlack) {
+        Color(0xF50A0B0E)
     } else {
-        listOf(Color(0xEA161924), Color(0xEA0E1018))
+        MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f)
     }
 
     val dockBorderBrush = Brush.verticalGradient(
         listOf(
-            Color.White.copy(alpha = if (pureBlack) 0.20f else 0.25f),
-            Color.White.copy(alpha = if (pureBlack) 0.05f else 0.08f)
+            if (pureBlack) Color.White.copy(alpha = 0.16f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+            if (pureBlack) Color.White.copy(alpha = 0.05f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.10f)
         )
     )
 
     BoxWithConstraints(
         modifier = modifier
             .shadow(
-                elevation = 16.dp,
-                shape = RoundedCornerShape(32.dp),
-                ambientColor = Color.Black.copy(alpha = 0.5f),
-                spotColor = Color.Black.copy(alpha = 0.6f)
+                elevation = 12.dp,
+                shape = RoundedCornerShape(26.dp),
+                ambientColor = Color.Black.copy(alpha = if (pureBlack) 0.6f else 0.35f),
+                spotColor = Color.Black.copy(alpha = if (pureBlack) 0.7f else 0.45f)
             )
-            .clip(RoundedCornerShape(32.dp))
+            .clip(RoundedCornerShape(26.dp))
             .border(
                 width = 1.dp,
                 brush = dockBorderBrush,
-                shape = RoundedCornerShape(32.dp)
+                shape = RoundedCornerShape(26.dp)
             )
-            .background(Brush.verticalGradient(dockGradient))
+            .background(dockBgColor)
             .fillMaxWidth()
     ) {
         val tabWidth = maxWidth / items.size
         val pillWidth = if (slim) 52.dp else 56.dp
-        val pillHeight = if (slim) 32.dp else 36.dp
+        val pillHeight = if (slim) 32.dp else 34.dp
 
         val indicatorOffset by animateDpAsState(
             targetValue = (tabWidth * selectedIndex) + ((tabWidth - pillWidth) / 2),
@@ -89,25 +89,24 @@ fun FluidSlidingNavigationBar(
             label = "DockPillOffset"
         )
 
-        // Floating Active Capsule Indicator with soft glow and subtle border
+        // Floating Active Capsule Indicator styled with Theme primary container
         Box(
             modifier = Modifier
-                .offset(x = indicatorOffset, y = if (slim) 12.dp else 14.dp)
+                .offset(x = indicatorOffset, y = if (slim) 10.dp else 12.dp)
                 .width(pillWidth)
                 .height(pillHeight)
                 .clip(CircleShape)
                 .border(
                     width = 0.8.dp,
-                    color = Color.White.copy(alpha = 0.18f),
+                    color = if (pureBlack) Color.White.copy(alpha = 0.18f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.20f),
                     shape = CircleShape
                 )
                 .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.White.copy(alpha = if (pureBlack) 0.20f else 0.22f),
-                            Color.White.copy(alpha = if (pureBlack) 0.08f else 0.10f)
-                        )
-                    )
+                    if (pureBlack) {
+                        Color.White.copy(alpha = 0.16f)
+                    } else {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.75f)
+                    }
                 )
         )
 
@@ -119,7 +118,7 @@ fun FluidSlidingNavigationBar(
                 val isSelected = selectedIndex == index
 
                 val iconScale by animateFloatAsState(
-                    targetValue = if (isSelected) 1.12f else 1.0f,
+                    targetValue = if (isSelected) 1.10f else 1.0f,
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
                         stiffness = Spring.StiffnessMedium
@@ -127,16 +126,13 @@ fun FluidSlidingNavigationBar(
                     label = "TabIconScale"
                 )
 
-                val contentAlpha by animateFloatAsState(
-                    targetValue = if (isSelected) 1.0f else 0.55f,
-                    animationSpec = tween(durationMillis = 200),
-                    label = "TabAlpha"
-                )
+                val activeColor = if (pureBlack) Color.White else MaterialTheme.colorScheme.primary
+                val inactiveColor = if (pureBlack) Color.White.copy(alpha = 0.55f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
 
-                val iconTint by animateColorAsState(
-                    targetValue = if (isSelected) Color.White else Color.White.copy(alpha = 0.60f),
+                val tabColor by animateColorAsState(
+                    targetValue = if (isSelected) activeColor else inactiveColor,
                     animationSpec = tween(durationMillis = 200),
-                    label = "TabIconTint"
+                    label = "TabColor"
                 )
 
                 Column(
@@ -153,13 +149,13 @@ fun FluidSlidingNavigationBar(
                     verticalArrangement = if (slim) Arrangement.Center else Arrangement.Top
                 ) {
                     if (!slim) {
-                        Spacer(modifier = Modifier.height(18.dp))
+                        Spacer(modifier = Modifier.height(17.dp))
                     }
 
                     Icon(
                         painter = painterResource(id = if (isSelected) item.iconIdActive else item.iconIdInactive),
                         contentDescription = stringResource(id = item.titleId),
-                        tint = iconTint,
+                        tint = tabColor,
                         modifier = Modifier
                             .size(23.dp)
                             .graphicsLayer {
@@ -169,7 +165,7 @@ fun FluidSlidingNavigationBar(
                     )
 
                     if (!slim) {
-                        Spacer(modifier = Modifier.height(5.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
 
                         Text(
                             text = stringResource(id = item.titleId),
@@ -177,7 +173,7 @@ fun FluidSlidingNavigationBar(
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            color = Color.White.copy(alpha = contentAlpha),
+                            color = tabColor,
                             letterSpacing = 0.2.sp
                         )
                     }

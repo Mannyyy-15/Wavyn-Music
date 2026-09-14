@@ -1618,9 +1618,9 @@ class MainActivity : ComponentActivity() {
                                                         modifier = Modifier
                                                             .align(Alignment.BottomCenter)
                                                             .padding(
-                                                                start = 14.dp,
-                                                                end = 14.dp,
-                                                                bottom = bottomInset + floatingBarsBottomPadding + 2.dp,
+                                                                start = 16.dp,
+                                                                end = 16.dp,
+                                                                bottom = bottomInset + floatingBarsBottomPadding,
                                                             )
                                                             .fillMaxWidth()
                                                             .height(navVisibleHeight),
@@ -1681,7 +1681,6 @@ class MainActivity : ComponentActivity() {
                                         }
                                     )
                                 )
-                                .nestedScroll(searchBarScrollBehavior.nestedScrollConnection)
                         ) {
                             Row(Modifier.fillMaxSize()) {
                                 if (showRail) {

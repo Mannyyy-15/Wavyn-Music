@@ -386,18 +386,29 @@ fun BottomSheetPlayer(
             return@LaunchedEffect
         }
         withContext(Dispatchers.IO) {
-            val spotifyId = iad1tya.echo.music.spotify.SpotifyCacheDatabase.getInstance().getSpotifyIdByVideoId(mediaId)
+            val db = iad1tya.echo.music.spotify.SpotifyCacheDatabase.getInstance()
+            val spotifyId = db.getSpotifyIdByVideoId(mediaId)
             val artwork = if (!spotifyId.isNullOrBlank()) {
                 iad1tya.echo.music.canvas.WavynCanvas.getBySpotifyTrackId(spotifyId)
             } else {
                 val title = mediaMetadata?.title ?: ""
                 val artist = mediaMetadata?.artists?.firstOrNull()?.name ?: ""
                 if (title.isNotBlank()) {
-                    iad1tya.echo.music.canvas.WavynCanvas.getBySongArtist(
-                        song = title,
-                        artist = artist,
-                        duration = mediaMetadata?.duration
-                    )
+                    val token = iad1tya.echo.music.spotify.SpotifyAuthManager.getValidAccessToken()
+                    val foundSpotifyId = if (token != null) {
+                        iad1tya.echo.music.spotify.SpotifyApiService.searchTrackId(token, "$title $artist")
+                    } else null
+
+                    if (!foundSpotifyId.isNullOrBlank()) {
+                        db.saveMapping(spotifyId = foundSpotifyId, videoId = mediaId, title = title, artist = artist)
+                        iad1tya.echo.music.canvas.WavynCanvas.getBySpotifyTrackId(foundSpotifyId)
+                    } else {
+                        iad1tya.echo.music.canvas.WavynCanvas.getBySongArtist(
+                            song = title,
+                            artist = artist,
+                            duration = mediaMetadata?.duration
+                        )
+                    }
                 } else null
             }
             if (artwork != null) {
