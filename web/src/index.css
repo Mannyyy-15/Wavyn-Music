@@ -1,13 +1,38 @@
 @import "tailwindcss";
 
+@theme {
+  --color-branding-orange: #E85002;
+  --color-primary-black: #000000;
+  --color-brand-c1: #000000;
+  --color-brand-c2: #C10801;
+  --color-brand-c3: #F16001;
+  --color-brand-c4: #D9C3AB;
+  --color-light-gray: #A7A7A7;
+  --color-brand-white: #F9F9F9;
+  --color-brand-gray: #646464;
+  --color-dark-gray: #333333;
+}
+
+:root {
+  --branding-orange: #E85002;
+  --branding-black: #000000;
+  --branding-crimson: #C10801;
+  --branding-flame: #F16001;
+  --branding-champagne: #D9C3AB;
+  --light-gray: #A7A7A7;
+  --white: #F9F9F9;
+  --gray: #646464;
+  --dark-gray: #333333;
+}
+
 @layer base {
   * {
     box-sizing: border-box;
   }
   body {
     font-family: 'Inter', 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background-color: #08090e;
-    color: #f8fafc;
+    background-color: #000000;
+    color: #F9F9F9;
     overflow: hidden;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
@@ -89,3 +114,65 @@
 .animate-scaleUp {
   animation: scaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* Glowing Mesh Gradient Animations */
+@keyframes meshPulse {
+  0%, 100% {
+    opacity: 0.82;
+    transform: translate(-50%, 0) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, 18px) scale(1.05);
+  }
+}
+
+.animate-mesh-pulse {
+  animation: meshPulse 9s ease-in-out infinite;
+}
+
+@keyframes meshOrb1 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.22;
+  }
+  50% {
+    transform: translate(40px, 30px) scale(1.1);
+    opacity: 0.32;
+  }
+}
+
+.animate-mesh-orb-1 {
+  animation: meshOrb1 12s ease-in-out infinite;
+}
+
+@keyframes meshOrb2 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.20;
+  }
+  50% {
+    transform: translate(-40px, 35px) scale(1.08);
+    opacity: 0.28;
+  }
+}
+
+.animate-mesh-orb-2 {
+  animation: meshOrb2 14s ease-in-out infinite;
+}
+
+@keyframes meshOrb3 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.12;
+  }
+  50% {
+    transform: translate(25px, -20px) scale(1.12);
+    opacity: 0.20;
+  }
+}
+
+.animate-mesh-orb-3 {
+  animation: meshOrb3 10s ease-in-out infinite;
+}
+

@@ -967,63 +967,8 @@ fun HomeScreen(
 
 
             if (selectedChip == null) {
-                // SECTION 1: "Yours Loved" (6 most played songs in 2-column x 3-row grid)
+                // SECTION 1: 6 most played songs in 2-column x 3-row grid directly under greeting
                 if (lovedSongs.isNotEmpty()) {
-                    item(key = "yours_loved_title") {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp)
-                                .animateItem(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.favorite),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(17.dp)
-                                )
-                                Text(
-                                    text = "Yours Loved",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 17.sp,
-                                        letterSpacing = 0.15.sp
-                                    ),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-
-                            // TOP PLAYED Badge
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
-                                    .border(
-                                        width = 0.75.dp,
-                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                                        shape = RoundedCornerShape(6.dp)
-                                    )
-                                    .padding(horizontal = 7.dp, vertical = 2.5.dp)
-                            ) {
-                                Text(
-                                    text = "TOP PLAYED",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 9.5.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        letterSpacing = 0.8.sp
-                                    ),
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
-
                     item(key = "yours_loved_grid") {
                         Column(
                             modifier = Modifier
@@ -1069,36 +1014,11 @@ fun HomeScreen(
                     }
                 }
 
-                // SECTION 2: "Your Sonic Vault" (User playlists, impressive unique title, right badge intact)
+                // SECTION 2: "Your Sonic Vault" (User playlists, clean title without right badge)
                 if (isSpotifyLoggedIn && (spotifyPlaylists.isNotEmpty() || spotifyLikedCount > 0)) {
                     item(key = "sonic_vault_title") {
                         NavigationTitle(
                             title = "Your Sonic Vault",
-                            action = {
-                                androidx.compose.material3.TextButton(
-                                    onClick = { navController.navigate("spotify_hub") },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                                    modifier = Modifier.height(32.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.ic_spotify),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp),
-                                            tint = Color(0xFF1DB954)
-                                        )
-                                        Text(
-                                            text = "Spotify Hub",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = Color(0xFF1DB954),
-                                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            },
                             modifier = Modifier.animateItem()
                         )
                     }

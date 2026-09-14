@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { LeftSidebar } from './components/LeftSidebar';
 import { RightPanel } from './components/RightPanel';
 import { NowPlayingModal } from './components/NowPlayingModal';
+import { AnimatedMeshBackground } from './components/AnimatedMeshBackground';
+import { BottomNav } from './components/BottomNav';
 import { HomeView } from './views/HomeView';
 import { DiscoverView } from './views/DiscoverView';
 import { RadioView } from './views/RadioView';
@@ -213,7 +215,10 @@ export const App: React.FC = () => {
   const allPlaylists = [...FEATURED_PLAYLISTS, ...customPlaylists];
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#0d0f14] font-sans text-slate-100 selection:bg-purple-500 selection:text-white">
+    <div className="relative flex h-screen w-screen overflow-hidden bg-black font-sans text-[#F9F9F9] selection:bg-[#E85002] selection:text-white">
+      {/* Ambient Animated Mesh Background */}
+      <AnimatedMeshBackground />
+
       {/* 1. Left Sidebar */}
       <LeftSidebar
         currentTab={currentTab}
@@ -240,7 +245,7 @@ export const App: React.FC = () => {
       />
 
       {/* 2. Center Main View Area */}
-      <main className="flex-1 h-full overflow-y-auto p-6 md:p-10 custom-scrollbar bg-[#0f1118]">
+      <main className="flex-1 h-full overflow-y-auto p-6 md:p-10 pb-24 md:pb-10 custom-scrollbar bg-transparent">
         {currentTab === 'home' && (
           <HomeView
             onPlaySong={handlePlaySong}
@@ -389,17 +394,20 @@ export const App: React.FC = () => {
         }}
       />
 
+      {/* Mobile/Tablet Bottom Navigation Bar (Normal, Docked) */}
+      <BottomNav currentTab={currentTab} onTabChange={setCurrentTab} />
+
       {/* Toast Notification */}
       {toastText && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-full bg-purple-600/90 text-white font-bold text-xs shadow-2xl backdrop-blur-xl border border-white/20 animate-fadeIn">
+        <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-full bg-[#E85002]/95 text-white font-bold text-xs shadow-2xl backdrop-blur-xl border border-white/20 animate-fadeIn">
           {toastText}
         </div>
       )}
 
       {/* Create Playlist Modal */}
       {isCreatePlaylistOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#121520] border border-white/10 p-6 rounded-3xl max-w-sm w-full shadow-2xl space-y-4 animate-scaleUp">
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0f1118] border border-white/10 p-6 rounded-3xl max-w-sm w-full shadow-2xl space-y-4 animate-scaleUp">
             <h3 className="text-lg font-bold text-white">Create New Playlist</h3>
             <form onSubmit={handleCreatePlaylistSubmit} className="space-y-4">
               <input
@@ -408,19 +416,19 @@ export const App: React.FC = () => {
                 value={newPlaylistTitle}
                 onChange={(e) => setNewPlaylistTitle(e.target.value)}
                 autoFocus
-                className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-slate-400 focus:outline-none focus:border-purple-500 text-sm"
+                className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-[#A7A7A7] focus:outline-none focus:border-[#E85002] text-sm"
               />
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsCreatePlaylistOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-[#A7A7A7] hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-500/25"
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-[#E85002] hover:bg-[#cf4502] text-white shadow-lg shadow-[#E85002]/25"
                 >
                   Create
                 </button>
