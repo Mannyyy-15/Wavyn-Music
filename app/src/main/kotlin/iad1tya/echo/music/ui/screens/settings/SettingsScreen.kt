@@ -162,14 +162,43 @@ fun SettingsScreen(
                     
                     Button(
                         onClick = {
-                            if (downloadedApkUri != null) {
-                                // Install APK
-                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                                    setDataAndType(downloadedApkUri, "application/vnd.android.package-archive")
-                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            val downloadDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: context.cacheDir
+                            val apkFile = java.io.File(downloadDir, "Wavyn-Music-update.apk")
+                            
+                            val launchInstaller: (java.io.File) -> Unit = { file ->
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
+                                    android.widget.Toast.makeText(context, "Please allow 'Install unknown apps' to install update", android.widget.Toast.LENGTH_LONG).show()
+                                    val permIntent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                                        data = android.net.Uri.parse("package:${context.packageName}")
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(permIntent)
+                                } else {
+                                    val apkUri = androidx.core.content.FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.FileProvider",
+                                        file
+                                    )
+                                    downloadedApkUri = apkUri
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                        setDataAndType(apkUri, "application/vnd.android.package-archive")
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    val resolveList = context.packageManager.queryIntentActivities(intent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+                                    for (resolveInfo in resolveList) {
+                                        context.grantUriPermission(resolveInfo.activityInfo.packageName, apkUri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    try {
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        android.widget.Toast.makeText(context, "Error opening installer: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                                    }
                                 }
-                                context.startActivity(intent)
+                            }
+
+                            if (apkFile.exists() && apkFile.length() > 1024 * 1024) {
+                                launchInstaller(apkFile)
                             } else if (!isDownloading) {
                                 // Start download
                                 isDownloading = true
@@ -177,7 +206,10 @@ fun SettingsScreen(
                                     try {
                                         // Fetch latest release info
                                         val client = okhttp3.OkHttpClient.Builder()
-                                            .dns(CloudflareDnsResolver)
+                                            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                                            .readTimeout(10, java.util.concurrent.TimeUnit.MINUTES)
+                                            .followRedirects(true)
+                                            .followSslRedirects(true)
                                             .build()
                                         val request = okhttp3.Request.Builder()
                                             .url("https://api.github.com/repos/Mannyyy-15/Wavyn-Music/releases/latest")
@@ -202,19 +234,23 @@ fun SettingsScreen(
                                         
                                         if (downloadUrl != null) {
                                             // Download APK
-                                            val apkRequest = okhttp3.Request.Builder().url(downloadUrl).build()
+                                            val apkRequest = okhttp3.Request.Builder().url(downloadUrl).header("User-Agent", "Wavyn-Music-App").build()
                                             val apkResponse = client.newCall(apkRequest).execute()
+                                            if (!apkResponse.isSuccessful) {
+                                                throw java.io.IOException("HTTP download error: ${apkResponse.code}")
+                                            }
                                             val body = apkResponse.body
                                             
                                             if (body != null) {
                                                 val contentLength = body.contentLength()
                                                 val inputStream = body.byteStream()
                                                 
-                                                // Save to cache directory
-                                                val apkFile = java.io.File(context.cacheDir, "echo_update.apk")
-                                                val outputStream = java.io.FileOutputStream(apkFile)
-                                                
-                                                val buffer = ByteArray(8192)
+                                                val tempFile = java.io.File(downloadDir, "Wavyn-Music-update.apk.tmp")
+                                                if (tempFile.exists()) tempFile.delete()
+                                                if (apkFile.exists()) apkFile.delete()
+
+                                                val outputStream = java.io.FileOutputStream(tempFile)
+                                                val buffer = ByteArray(32768)
                                                 var bytesRead: Int
                                                 var totalBytesRead = 0L
                                                 
@@ -223,26 +259,26 @@ fun SettingsScreen(
                                                     totalBytesRead += bytesRead
                                                     
                                                     if (contentLength > 0) {
-                                                        val progress = totalBytesRead.toFloat() / contentLength.toFloat()
+                                                        val progress = (totalBytesRead.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f)
                                                         (context as? android.app.Activity)?.runOnUiThread {
                                                             downloadProgress = progress
                                                         }
                                                     }
                                                 }
                                                 
+                                                outputStream.flush()
                                                 outputStream.close()
                                                 inputStream.close()
                                                 
-                                                // Get URI using FileProvider
-                                                val apkUri = androidx.core.content.FileProvider.getUriForFile(
-                                                    context,
-                                                    "${context.packageName}.FileProvider",
-                                                    apkFile
-                                                )
-                                                
+                                                if (tempFile.length() < 1024 * 1024) {
+                                                    tempFile.delete()
+                                                    throw java.io.IOException("File download incomplete")
+                                                }
+                                                tempFile.renameTo(apkFile)
+
                                                 (context as? android.app.Activity)?.runOnUiThread {
-                                                    downloadedApkUri = apkUri
                                                     isDownloading = false
+                                                    launchInstaller(apkFile)
                                                 }
                                             }
                                         }
@@ -250,6 +286,7 @@ fun SettingsScreen(
                                         (context as? android.app.Activity)?.runOnUiThread {
                                             isDownloading = false
                                             downloadProgress = null
+                                            android.widget.Toast.makeText(context, "Download error: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
                                         }
                                     }
                                 }
@@ -260,11 +297,24 @@ fun SettingsScreen(
                     ) {
                         Text(
                             when {
+                                isDownloading -> "Downloading... ${(downloadProgress?.let { (it * 100).toInt() } ?: 0)}%"
                                 downloadedApkUri != null -> "Install Update"
-                                isDownloading -> "Downloading..."
                                 else -> stringResource(R.string.download_update)
                             }
                         )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = {
+                            val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/Mannyyy-15/Wavyn-Music/releases/latest")).apply {
+                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(browserIntent)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Download via Browser")
                     }
 
                     // Release Notes Section
