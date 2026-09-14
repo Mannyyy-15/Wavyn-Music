@@ -42,6 +42,8 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -54,6 +56,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -63,6 +66,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -197,6 +201,7 @@ import iad1tya.echo.music.playback.MusicService.MusicBinder
 import iad1tya.echo.music.playback.PlayerConnection
 import iad1tya.echo.music.playback.queues.YouTubeQueue
 import iad1tya.echo.music.ui.component.AccountSettingsDialog
+import iad1tya.echo.music.ui.screens.settings.AccountSettings
 import iad1tya.echo.music.ui.component.AppNavigationBar
 import iad1tya.echo.music.ui.component.BottomSheetMenu
 import iad1tya.echo.music.ui.component.BottomSheetPage
@@ -1035,7 +1040,12 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    var showAccountDialog by remember { mutableStateOf(false) }
+                    var showAccountSidebar by rememberSaveable { mutableStateOf(false) }
+
+                    BackHandler(enabled = showAccountSidebar) {
+                        showAccountSidebar = false
+                        homeViewModel.refresh()
+                    }
 
                     val baseBg = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
                     val insetBg = if (playerBottomSheetState.progress > 0f) Color.Transparent else baseBg
@@ -1130,22 +1140,12 @@ class MainActivity : ComponentActivity() {
                                             TopAppBar(
                                                 title = {
                                                     if (navBackStackEntry?.destination?.route == Screens.Home.route) {
-                                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                                            Icon(
-                                                                painter = painterResource(R.drawable.wavyn_logo_white),
-                                                                contentDescription = null,
-                                                                tint = Color.Unspecified,
-                                                                modifier = Modifier.size(68.dp).padding(end = 8.dp)
-                                                            )
-                                                            Text(
-                                                                text = "Wavyn",
-                                                                style = MaterialTheme.typography.titleLarge.copy(
-                                                                    fontFamily = FontFamily(Font(R.font.zalando_sans_expanded)),
-                                                                    fontWeight = FontWeight.Bold,
-                                                                    fontSize = 28.sp
-                                                                ),
-                                                            )
-                                                        }
+                                                        Icon(
+                                                            painter = painterResource(R.drawable.wavyn_logo_white),
+                                                            contentDescription = null,
+                                                            tint = Color.Unspecified,
+                                                            modifier = Modifier.size(52.dp)
+                                                        )
                                                     } else {
                                                         Text(
                                                             text = currentTitleRes?.let { stringResource(it) } ?: "",
@@ -1158,20 +1158,7 @@ class MainActivity : ComponentActivity() {
                                                     }
                                                 },
                                                 actions = {
-                                                    IconButton(onClick = { navController.navigate("history") }) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.history),
-                                                            contentDescription = stringResource(R.string.history)
-                                                        )
-                                                    }
-                                                    IconButton(onClick = { navController.navigate("stats") }) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.stats),
-                                                            contentDescription = stringResource(R.string.stats),
-                                                            modifier = Modifier.size(20.dp)
-                                                        )
-                                                    }
-                                                    IconButton(onClick = { showAccountDialog = true }) {
+                                                    IconButton(onClick = { showAccountSidebar = true }) {
                                                         BadgedBox(
                                                             badge = {
                                                                 if (latestVersionName != BuildConfig.VERSION_NAME) {
@@ -1840,15 +1827,77 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        if (showAccountDialog) {
-                            AccountSettingsDialog(
-                                navController = navController,
-                                onDismiss = {
-                                    showAccountDialog = false
-                                    homeViewModel.refresh()
-                                },
-                                latestVersionName = latestVersionName
+                        // Account Sidebar Scrim Backdrop
+                        AnimatedVisibility(
+                            visible = showAccountSidebar,
+                            enter = fadeIn(animationSpec = tween(durationMillis = 250)),
+                            exit = fadeOut(animationSpec = tween(durationMillis = 200)),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .zIndex(99f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.55f))
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) {
+                                        showAccountSidebar = false
+                                        homeViewModel.refresh()
+                                    }
                             )
+                        }
+
+                        // Account Sidebar (Sliding Drawer from Right)
+                        AnimatedVisibility(
+                            visible = showAccountSidebar,
+                            enter = slideInHorizontally(
+                                initialOffsetX = { fullWidth -> fullWidth },
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
+                            ),
+                            exit = slideOutHorizontally(
+                                targetOffsetX = { fullWidth -> fullWidth },
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMedium
+                                )
+                            ),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .zIndex(100f)
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .fillMaxWidth(0.85f)
+                                        .widthIn(max = 420.dp),
+                                    shape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp),
+                                    color = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
+                                    tonalElevation = 6.dp,
+                                    shadowElevation = 16.dp
+                                ) {
+                                    AccountSettings(
+                                        navController = navController,
+                                        onClose = {
+                                            showAccountSidebar = false
+                                            homeViewModel.refresh()
+                                        },
+                                        latestVersionName = latestVersionName,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .windowInsetsPadding(WindowInsets.systemBars)
+                                    )
+                                }
+                            }
                         }
 
                         sharedSong?.let { song ->

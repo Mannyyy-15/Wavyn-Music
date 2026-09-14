@@ -57,6 +57,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -107,7 +110,9 @@ import androidx.compose.material.icons.filled.PlayArrow
 import iad1tya.echo.music.playback.queues.YouTubeAlbumRadio
 import iad1tya.echo.music.playback.queues.YouTubeQueue
 import iad1tya.echo.music.ui.component.AlbumGridItem
+import iad1tya.echo.music.ui.component.AlbumListItem
 import iad1tya.echo.music.ui.component.ArtistGridItem
+import iad1tya.echo.music.ui.component.ArtistListItem
 import iad1tya.echo.music.ui.component.ChipsRow
 import iad1tya.echo.music.ui.component.LocalBottomSheetPageState
 import iad1tya.echo.music.ui.component.LocalMenuState
@@ -172,6 +177,7 @@ fun HomeScreen(
 
     val quickPicksLazyGridState = rememberLazyGridState()
     val forgottenFavoritesLazyGridState = rememberLazyGridState()
+    val keepListeningLazyGridState = rememberLazyGridState()
 
     val accountName by viewModel.accountName.collectAsState()
     val accountImageUrl by viewModel.accountImageUrl.collectAsState()
@@ -182,6 +188,7 @@ fun HomeScreen(
     val url = if (isLoggedIn) accountImageUrl else null
 
     val isSpotifyLoggedIn by iad1tya.echo.music.spotify.SpotifyAuthManager.isLoggedIn.collectAsState()
+    val currentSpotifyUser by iad1tya.echo.music.spotify.SpotifyAuthManager.currentUser.collectAsState()
     val spotifyPlaylists by iad1tya.echo.music.spotify.SpotifyAuthManager.userPlaylists.collectAsState()
     val spotifyLikedCount by iad1tya.echo.music.spotify.SpotifyAuthManager.likedTracksCount.collectAsState()
 
@@ -387,6 +394,10 @@ fun HomeScreen(
         forgottenFavoritesLazyGridState.scrollToItem(0)
     }
 
+    LaunchedEffect(keepListening) {
+        keepListeningLazyGridState.scrollToItem(0)
+    }
+
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
@@ -415,18 +426,199 @@ fun HomeScreen(
                 }
             )
         }
+        val keepListeningSnapLayoutInfoProvider = remember(keepListeningLazyGridState) {
+            SnapLayoutInfoProvider(
+                lazyGridState = keepListeningLazyGridState,
+                positionInLayout = { layoutSize, itemSize ->
+                    (layoutSize * horizontalLazyGridItemWidthFactor / 2f - itemSize / 2f)
+                }
+            )
+        }
+
+        val localListItem: @Composable (LocalItem) -> Unit = { item ->
+            when (item) {
+                is Song -> {
+                    val song by database.song(item.id).collectAsState(initial = item)
+                    SongListItem(
+                        song = song!!,
+                        showInLibraryIcon = true,
+                        isActive = song!!.id == mediaMetadata?.id,
+                        isPlaying = isPlaying,
+                        isSwipeable = false,
+                        trailingContent = {
+                            IconButton(
+                                onClick = {
+                                    menuState.show {
+                                        SongMenu(
+                                            originalSong = song!!,
+                                            navController = navController,
+                                            onDismiss = menuState::dismiss,
+                                            compactMode = true,
+                                        )
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.more_horiz),
+                                    contentDescription = null
+                                )
+                            }
+                        },
+                        modifier = Modifier
+                            .width(horizontalLazyGridItemWidth)
+                            .combinedClickable(
+                                onClick = {
+                                    if (song!!.id == mediaMetadata?.id) {
+                                        playerConnection.player.togglePlayPause()
+                                    } else {
+                                        playerConnection.playQueue(
+                                            YouTubeQueue.radio(
+                                                song!!.toMediaMetadata()
+                                            )
+                                        )
+                                    }
+                                },
+                                onLongClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    menuState.show {
+                                        SongMenu(
+                                            originalSong = song!!,
+                                            navController = navController,
+                                            onDismiss = menuState::dismiss,
+                                            compactMode = true,
+                                        )
+                                    }
+                                }
+                            )
+                    )
+                }
+
+                is Album -> {
+                    AlbumListItem(
+                        album = item,
+                        isActive = item.id == mediaMetadata?.album?.id,
+                        isPlaying = isPlaying,
+                        trailingContent = {
+                            IconButton(
+                                onClick = {
+                                    menuState.show {
+                                        AlbumMenu(
+                                            originalAlbum = item,
+                                            navController = navController,
+                                            onDismiss = menuState::dismiss
+                                        )
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.more_horiz),
+                                    contentDescription = null
+                                )
+                            }
+                        },
+                        modifier = Modifier
+                            .width(horizontalLazyGridItemWidth)
+                            .combinedClickable(
+                                onClick = {
+                                    navController.navigate("album/${item.id}")
+                                },
+                                onLongClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    menuState.show {
+                                        AlbumMenu(
+                                            originalAlbum = item,
+                                            navController = navController,
+                                            onDismiss = menuState::dismiss
+                                        )
+                                    }
+                                }
+                            )
+                    )
+                }
+
+                is Artist -> {
+                    ArtistListItem(
+                        artist = item,
+                        trailingContent = {
+                            IconButton(
+                                onClick = {
+                                    menuState.show {
+                                        ArtistMenu(
+                                            originalArtist = item,
+                                            coroutineScope = scope,
+                                            onDismiss = menuState::dismiss
+                                        )
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.more_horiz),
+                                    contentDescription = null
+                                )
+                            }
+                        },
+                        modifier = Modifier
+                            .width(horizontalLazyGridItemWidth)
+                            .combinedClickable(
+                                onClick = {
+                                    navController.navigate("artist/${item.id}")
+                                },
+                                onLongClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    menuState.show {
+                                        ArtistMenu(
+                                            originalArtist = item,
+                                            coroutineScope = scope,
+                                            onDismiss = menuState::dismiss
+                                        )
+                                    }
+                                }
+                            )
+                    )
+                }
+
+                is Playlist -> {}
+            }
+        }
 
         LazyColumn(
             state = lazylistState,
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
         ) {
-            item {
-                ChipsRow(
-                    chips = homePage?.chips?.map { it to it.title } ?: emptyList(),
-                    currentValue = selectedChip,
-                    onValueUpdate = {
-                        viewModel.toggleChip(it)
+            item(key = "home_greeting") {
+                val hour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
+                val greeting = remember(hour) {
+                    when (hour) {
+                        in 5..11 -> "Good morning"
+                        in 12..16 -> "Good afternoon"
+                        else -> "Good evening"
                     }
+                }
+                val resolvedUserName = remember(isLoggedIn, accountName, isSpotifyLoggedIn, currentSpotifyUser) {
+                    val spotifyName = currentSpotifyUser?.displayName?.trim()
+                    if (isSpotifyLoggedIn && !spotifyName.isNullOrBlank() && !spotifyName.equals("Spotify User", ignoreCase = true) && !spotifyName.equals("Spotify", ignoreCase = true)) {
+                        spotifyName
+                    } else if (isLoggedIn && accountName.isNotBlank()) {
+                        val cleanName = if (accountName.contains("@")) accountName.substringBefore("@") else accountName
+                        cleanName.trim()
+                    } else {
+                        "User"
+                    }
+                }
+
+                Text(
+                    text = "$greeting, $resolvedUserName",
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontFamily = FontFamily(Font(R.font.zalando_sans_expanded)),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 24.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 10.dp)
                 )
             }
 
@@ -732,22 +924,22 @@ fun HomeScreen(
                     }
 
                     item(key = "keep_listening_list") {
-                        val rows = if (keepListening.size > 6) 2 else 1
                         LazyHorizontalGrid(
-                            state = rememberLazyGridState(),
-                            rows = GridCells.Fixed(rows),
+                            state = keepListeningLazyGridState,
+                            rows = GridCells.Fixed(4),
+                            flingBehavior = rememberSnapFlingBehavior(keepListeningSnapLayoutInfoProvider),
                             contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
                                 .asPaddingValues(),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height((GridThumbnailHeight + with(LocalDensity.current) {
-                                    MaterialTheme.typography.bodyLarge.lineHeight.toDp() * 2 +
-                                            MaterialTheme.typography.bodyMedium.lineHeight.toDp() * 2
-                                }) * rows)
+                                .height(ListItemHeight * 4)
                                 .animateItem()
                         ) {
-                            items(keepListening) {
-                                localGridItem(it)
+                            items(
+                                items = keepListening.distinctBy { it.id },
+                                key = { it.id }
+                            ) { item ->
+                                localListItem(item)
                             }
                         }
                     }
