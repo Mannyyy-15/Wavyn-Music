@@ -297,10 +297,12 @@ fun SongListItem(
     val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = true)
 
     val content: @Composable () -> Unit = {
+        val artistText = song.artists.joinToString { it.name }
+        val artistByText = if (artistText.isNotBlank()) "By $artistText" else ""
         ListItem(
             title = song.song.title,
             subtitle = joinByBullet(
-                song.artists.joinToString { it.name },
+                artistByText.ifEmpty { null },
                 makeTimeString(song.song.duration * 1000L)
             ),
             subtitleColor = subtitleColor,

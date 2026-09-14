@@ -750,7 +750,7 @@ fun HomeScreen(
             ),
         contentAlignment = Alignment.TopStart
     ) {
-        val horizontalLazyGridItemWidthFactor = if (maxWidth * 0.475f >= 320.dp) 0.475f else 0.9f
+        val horizontalLazyGridItemWidthFactor = if (maxWidth * 0.475f >= 320.dp) 0.475f else 1.0f
         val horizontalLazyGridItemWidth = maxWidth * horizontalLazyGridItemWidthFactor
         val quickPicksSnapLayoutInfoProvider = remember(quickPicksLazyGridState) {
             SnapLayoutInfoProvider(
@@ -788,21 +788,32 @@ fun HomeScreen(
                         isPlaying = isPlaying,
                         isSwipeable = false,
                         trailingContent = {
-                            IconButton(
-                                onClick = {
-                                    menuState.show {
-                                        SongMenu(
-                                            originalSong = song!!,
-                                            navController = navController,
-                                            onDismiss = menuState::dismiss,
-                                            compactMode = true,
-                                        )
-                                    }
-                                }
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF1E2129))
+                                    .clickable {
+                                        if (song!!.id == mediaMetadata?.id) {
+                                            playerConnection.player.togglePlayPause()
+                                        } else {
+                                            playerConnection.playQueue(
+                                                YouTubeQueue.radio(
+                                                    song!!.toMediaMetadata()
+                                                )
+                                            )
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
                             ) {
+                                val isCurrent = song!!.id == mediaMetadata?.id
                                 Icon(
-                                    painter = painterResource(R.drawable.more_horiz),
-                                    contentDescription = null
+                                    painter = painterResource(
+                                        if (isCurrent && isPlaying) R.drawable.pause else R.drawable.play
+                                    ),
+                                    contentDescription = if (isCurrent && isPlaying) "Pause" else "Play",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(15.dp)
                                 )
                             }
                         },
@@ -841,20 +852,21 @@ fun HomeScreen(
                         isActive = item.id == mediaMetadata?.album?.id,
                         isPlaying = isPlaying,
                         trailingContent = {
-                            IconButton(
-                                onClick = {
-                                    menuState.show {
-                                        AlbumMenu(
-                                            originalAlbum = item,
-                                            navController = navController,
-                                            onDismiss = menuState::dismiss
-                                        )
-                                    }
-                                }
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF1E2129))
+                                    .clickable {
+                                        navController.navigate("album/${item.id}")
+                                    },
+                                contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    painter = painterResource(R.drawable.more_horiz),
-                                    contentDescription = null
+                                    painter = painterResource(R.drawable.play),
+                                    contentDescription = "Play",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(15.dp)
                                 )
                             }
                         },
@@ -1261,21 +1273,32 @@ fun HomeScreen(
                                     isPlaying = isPlaying,
                                     isSwipeable = false,
                                     trailingContent = {
-                                        IconButton(
-                                            onClick = {
-                                                menuState.show {
-                                                    SongMenu(
-                                                        originalSong = song!!,
-                                                        navController = navController,
-                                                        onDismiss = menuState::dismiss,
-                                                        compactMode = true,
-                                                    )
-                                                }
-                                            }
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF1E2129))
+                                                .clickable {
+                                                    if (song!!.id == mediaMetadata?.id) {
+                                                        playerConnection.player.togglePlayPause()
+                                                    } else {
+                                                        playerConnection.playQueue(
+                                                            YouTubeQueue.radio(
+                                                                song!!.toMediaMetadata()
+                                                            )
+                                                        )
+                                                    }
+                                                },
+                                            contentAlignment = Alignment.Center
                                         ) {
+                                            val isCurrent = song!!.id == mediaMetadata?.id
                                             Icon(
-                                                painter = painterResource(R.drawable.more_vert),
-                                                contentDescription = null
+                                                painter = painterResource(
+                                                    if (isCurrent && isPlaying) R.drawable.pause else R.drawable.play
+                                                ),
+                                                contentDescription = if (isCurrent && isPlaying) "Pause" else "Play",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(15.dp)
                                             )
                                         }
                                     },

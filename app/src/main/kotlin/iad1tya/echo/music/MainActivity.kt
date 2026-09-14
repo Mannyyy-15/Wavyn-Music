@@ -1147,28 +1147,29 @@ class MainActivity : ComponentActivity() {
                                         Row(modifier = Modifier.zIndex(11f)) {
                                             TopAppBar(
                                                 title = {
-                                                    if (navBackStackEntry?.destination?.route == Screens.Home.route) {
-                                                        Row(
-                                                            verticalAlignment = Alignment.CenterVertically,
-                                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                                        ) {
-                                                            Icon(
-                                                                painter = painterResource(R.drawable.wavyn_logo_white),
-                                                                contentDescription = null,
-                                                                tint = Color.Unspecified,
-                                                                modifier = Modifier.size(36.dp)
-                                                            )
-                                                            Text(
-                                                                text = "Wavyn",
-                                                                style = MaterialTheme.typography.titleLarge.copy(
-                                                                    fontFamily = FontFamily(Font(R.font.zalando_sans_expanded)),
-                                                                    fontWeight = FontWeight.Bold,
-                                                                    fontSize = 24.sp
-                                                                ),
-                                                                color = MaterialTheme.colorScheme.onSurface
-                                                            )
-                                                        }
-                                                    } else {
+                                                     if (navBackStackEntry?.destination?.route == Screens.Home.route) {
+                                                         Row(
+                                                             verticalAlignment = Alignment.CenterVertically,
+                                                             horizontalArrangement = Arrangement.spacedBy(1.5.dp)
+                                                         ) {
+                                                             Icon(
+                                                                 painter = painterResource(R.drawable.wavyn_logo_white),
+                                                                 contentDescription = "Wavyn Logo",
+                                                                 tint = MaterialTheme.colorScheme.onSurface,
+                                                                 modifier = Modifier.size(21.dp)
+                                                             )
+                                                             Text(
+                                                                 text = "avyn",
+                                                                 style = MaterialTheme.typography.titleLarge.copy(
+                                                                     fontFamily = FontFamily(Font(R.font.zalando_sans_expanded)),
+                                                                     fontWeight = FontWeight.Bold,
+                                                                     fontSize = 24.sp,
+                                                                     letterSpacing = 0.sp
+                                                                 ),
+                                                                 color = MaterialTheme.colorScheme.onSurface
+                                                             )
+                                                         }
+                                                     } else {
                                                         Text(
                                                             text = currentTitleRes?.let { stringResource(it) } ?: "",
                                                             style = MaterialTheme.typography.titleLarge.copy(

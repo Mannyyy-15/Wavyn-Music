@@ -22,14 +22,14 @@ import androidx.palette.graphics.Palette
 import com.materialkolor.rememberDynamicColorScheme
 import com.materialkolor.score.Score
 
-val DefaultThemeColor = Color(0xFFED5564)
+val DefaultThemeColor = Color(0xFFE85002)
 
-// Pitch black dark color scheme
+// Pitch black dark color scheme with Brand Orange accents
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFFFFFFFF),
-    onPrimary = Color(0xFF000000),
-    primaryContainer = Color(0xFF2A2A2A),
-    onPrimaryContainer = Color(0xFFFFFFFF),
+    primary = Color(0xFFE85002),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFF2E1508),
+    onPrimaryContainer = Color(0xFFF16001),
     secondary = Color(0xFFE0E0E0),
     onSecondary = Color(0xFF000000),
     secondaryContainer = Color(0xFF1A1A1A),
