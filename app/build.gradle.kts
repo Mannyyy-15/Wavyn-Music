@@ -25,9 +25,9 @@ android {
     defaultConfig {
         applicationId = "iad1tya.echo.music"
         minSdk = 26
-        targetSdk = 36
-        versionCode = 451
-        versionName = "4.5.1"
+        targetSdk = 35
+        versionCode = 452
+        versionName = "4.5.2"
 
         val lastFmKey = localProperties.getProperty("LASTFM_API_KEY") ?: System.getenv("LASTFM_API_KEY") ?: ""
         val lastFmSecret = localProperties.getProperty("LASTFM_SECRET") ?: System.getenv("LASTFM_SECRET") ?: ""
@@ -92,6 +92,8 @@ android {
             keyPassword = "android"
             storePassword = "android"
             storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
+            enableV1Signing = true
+            enableV2Signing = true
         }
     }
 
