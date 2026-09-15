@@ -99,59 +99,50 @@ fun AnimatedMeshBackground(
                 val w = size.width
                 val h = size.height
 
-                // Top to bottom brand gradient foundation
-                val topDark = Color(0xFF000000)
-                val midDark = Color(0xFF0C0503)
-                val bottomDark = Color(0xFF050100)
+                // Dark foundation
+                val baseDark = Color(0xFF090A0F)
 
-                val baseGradient = Brush.verticalGradient(
-                    colors = listOf(topDark, midDark, bottomDark),
-                    startY = 0f,
-                    endY = h
-                )
-
-                // Official Branding Gradient Palette:
-                // #000000 -> #C10801 (Crimson) -> #F16001 (Flame Orange) -> #D9C3AB (Champagne) + #E85002 (Brand Orange)
-                val crimson = Color(0xFFC10801)
-                val flameOrange = Color(0xFFF16001)
-                val brandOrange = Color(0xFFE85002)
-                val champagne = Color(0xFFD9C3AB)
-                val deepCrimson = Color(0xFF800500)
-                val softWhiteGlow = Color(0xFFFFF0E5)
+                // Visible dark greys, charcoals, slate, and luminous white highlight
+                val nodeColor1 = Color(0xFF1E2128)
+                val nodeColor2 = Color(0xFF262C38)
+                val nodeColor3 = Color(0xFF333B4B)
+                val nodeColor4 = Color(0xFF16181F)
+                val nodeColor5 = Color(0xFF424C5E)
+                val whiteHighlight = Color(0xFFFFFFFF)
 
                 val b1 = Brush.radialGradient(
-                    colors = listOf(crimson.copy(alpha = 0.50f), crimson.copy(alpha = 0.18f), Color.Transparent),
+                    colors = listOf(nodeColor1.copy(alpha = 0.90f), nodeColor1.copy(alpha = 0.40f), Color.Transparent),
                     center = Offset(w * p1x, h * p1y),
                     radius = w * r1
                 )
                 val b2 = Brush.radialGradient(
-                    colors = listOf(brandOrange.copy(alpha = 0.55f), brandOrange.copy(alpha = 0.20f), Color.Transparent),
+                    colors = listOf(nodeColor2.copy(alpha = 0.85f), nodeColor2.copy(alpha = 0.35f), Color.Transparent),
                     center = Offset(w * p2x, h * p2y),
                     radius = w * r2
                 )
                 val b3 = Brush.radialGradient(
-                    colors = listOf(flameOrange.copy(alpha = 0.45f), flameOrange.copy(alpha = 0.15f), Color.Transparent),
+                    colors = listOf(nodeColor3.copy(alpha = 0.75f), nodeColor3.copy(alpha = 0.30f), Color.Transparent),
                     center = Offset(w * p3x, h * p3y),
                     radius = w * r3
                 )
                 val b4 = Brush.radialGradient(
-                    colors = listOf(champagne.copy(alpha = 0.30f), champagne.copy(alpha = 0.08f), Color.Transparent),
+                    colors = listOf(nodeColor4.copy(alpha = 0.80f), nodeColor4.copy(alpha = 0.30f), Color.Transparent),
                     center = Offset(w * p4x, h * p4y),
                     radius = w * r4
                 )
                 val b5 = Brush.radialGradient(
-                    colors = listOf(deepCrimson.copy(alpha = 0.40f), deepCrimson.copy(alpha = 0.12f), Color.Transparent),
+                    colors = listOf(nodeColor5.copy(alpha = 0.65f), nodeColor5.copy(alpha = 0.20f), Color.Transparent),
                     center = Offset(w * p5x, h * p5y),
                     radius = w * r5
                 )
                 val b6 = Brush.radialGradient(
-                    colors = listOf(softWhiteGlow.copy(alpha = 0.18f), softWhiteGlow.copy(alpha = 0.04f), Color.Transparent),
+                    colors = listOf(whiteHighlight.copy(alpha = 0.16f), whiteHighlight.copy(alpha = 0.05f), Color.Transparent),
                     center = Offset(w * p6x, h * p6y),
                     radius = w * r6
                 )
 
                 onDrawBehind {
-                    drawRect(baseGradient)
+                    drawRect(baseDark)
                     drawRect(b1)
                     drawRect(b2)
                     drawRect(b3)

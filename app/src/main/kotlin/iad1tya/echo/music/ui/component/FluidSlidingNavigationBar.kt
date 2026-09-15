@@ -63,8 +63,20 @@ fun FluidSlidingNavigationBar(
         Color.White.copy(alpha = 0.14f)
     }
 
-    val brandOrange = Color(0xFFE85002)
-    val flameOrange = Color(0xFFF16001)
+    val activePillBg = if (pureBlack) {
+        Color.White.copy(alpha = 0.15f)
+    } else {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
+    }
+
+    val activePillBorder = if (pureBlack) {
+        Color.White.copy(alpha = 0.20f)
+    } else {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+    }
+
+    val activeColor = if (pureBlack) Color.White else MaterialTheme.colorScheme.primary
+    val inactiveColor = if (pureBlack) Color.White.copy(alpha = 0.55f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
 
     Column(
         modifier = modifier
@@ -106,14 +118,10 @@ fun FluidSlidingNavigationBar(
                         .then(
                             if (isSelected) {
                                 Modifier
-                                    .background(
-                                        Brush.horizontalGradient(
-                                            listOf(brandOrange, flameOrange)
-                                        )
-                                    )
+                                    .background(activePillBg)
                                     .border(
                                         width = 0.75.dp,
-                                        color = Color.White.copy(alpha = 0.35f),
+                                        color = activePillBorder,
                                         shape = CircleShape
                                     )
                             } else {
@@ -145,7 +153,7 @@ fun FluidSlidingNavigationBar(
                         Icon(
                             painter = painterResource(id = if (isSelected) item.iconIdActive else item.iconIdInactive),
                             contentDescription = stringResource(id = item.titleId),
-                            tint = if (isSelected) Color.White else Color(0xFFA7A7A7),
+                            tint = if (isSelected) activeColor else inactiveColor,
                             modifier = Modifier
                                 .size(if (slim) 20.dp else 22.dp)
                                 .graphicsLayer {
@@ -157,7 +165,7 @@ fun FluidSlidingNavigationBar(
                         if (isSelected) {
                             Text(
                                 text = stringResource(id = item.titleId),
-                                color = Color.White,
+                                color = activeColor,
                                 fontSize = if (slim) 12.sp else 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,

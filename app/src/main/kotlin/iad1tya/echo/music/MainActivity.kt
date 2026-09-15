@@ -1156,7 +1156,7 @@ class MainActivity : ComponentActivity() {
                                                                  painter = painterResource(R.drawable.wavyn_logo_white),
                                                                  contentDescription = "Wavyn Logo",
                                                                  tint = MaterialTheme.colorScheme.onSurface,
-                                                                 modifier = Modifier.size(21.dp)
+                                                                 modifier = Modifier.size(32.dp)
                                                              )
                                                              Text(
                                                                  text = "avyn",
