@@ -21,6 +21,7 @@ import android.media.audiofx.Equalizer
 import android.media.audiofx.LoudnessEnhancer
 import android.media.audiofx.Virtualizer
 import android.net.ConnectivityManager
+import android.net.wifi.WifiManager
 import android.os.Binder
 import android.os.Build
 import android.util.Log
@@ -225,6 +226,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
@@ -344,7 +346,9 @@ class MusicService :
     private var currentMediaIdRetryCount = mutableMapOf<String, Int>()
     private val MAX_RETRY_PER_SONG = 3
     private val RETRY_DELAY_MS = 1000L
-    private val CHUNK_LENGTH = 512 * 1024L
+
+    // WiFi Lock for rock-solid uninterrupted streaming in background
+    private var wifiLock: WifiManager.WifiLock? = null
 
     // Track failed songs to prevent infinite retry loops
     private val recentlyFailedSongs = mutableSetOf<String>()
@@ -446,14 +450,21 @@ class MusicService :
         )
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                30_000, // minBufferMs
-                60_000, // maxBufferMs
-                1_500,  // bufferForPlaybackMs (fast start)
-                3_000   // bufferForPlaybackAfterRebufferMs
+                45_000, // minBufferMs (generous 45s buffer to absorb any network latency)
+                120_000, // maxBufferMs (buffers up to 2 full minutes ahead)
+                1_000,  // bufferForPlaybackMs (ultra-fast 1s start)
+                2_000   // bufferForPlaybackAfterRebufferMs (fast 2s rebuffer recovery)
             )
             .setPrioritizeTimeOverSizeThresholds(true)
-            .setBackBuffer(15_000, false)
+            .setBackBuffer(30_000, true)
             .build()
+
+        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+        wifiLock = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            wifiManager?.createWifiLock(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "WavynMusic:WifiLock")
+        } else {
+            wifiManager?.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "WavynMusic:WifiLock")
+        }?.apply { setReferenceCounted(false) }
 
         player =
             ExoPlayer
@@ -2056,6 +2067,19 @@ class MusicService :
             currentMediaMetadata.value = player.currentMetadata
         }
 
+        // WiFi Lock management for uninterrupted background streaming
+        if (events.containsAny(Player.EVENT_IS_PLAYING_CHANGED)) {
+            if (player.isPlaying) {
+                if (wifiLock?.isHeld != true) {
+                    wifiLock?.acquire()
+                }
+            } else {
+                if (wifiLock?.isHeld == true) {
+                    wifiLock?.release()
+                }
+            }
+        }
+
         // Last.fm scrobble state tracking
         if (events.containsAny(Player.EVENT_IS_PLAYING_CHANGED)) {
             scrobbleManager?.onPlayerStateChanged(player.isPlaying, player.currentMetadata, duration = player.duration)
@@ -2495,6 +2519,8 @@ class MusicService :
                             OkHttpDataSource.Factory(
                                 OkHttpClient
                                     .Builder()
+                                    .connectionPool(ConnectionPool(8, 5, TimeUnit.MINUTES))
+                                    .retryOnConnectionFailure(true)
                                     .dns(CloudflareDnsResolver)
                                     .proxy(YouTube.streamProxy)
                                     .followRedirects(true)
@@ -2519,8 +2545,8 @@ class MusicService :
                                         originReferer.referer?.let { builder.header("Referer", it) }
                                         chain.proceed(builder.build())
                                     }
-                                    .connectTimeout(15, TimeUnit.SECONDS)
-                                    .readTimeout(20, TimeUnit.SECONDS)
+                                    .connectTimeout(30, TimeUnit.SECONDS)
+                                    .readTimeout(30, TimeUnit.SECONDS)
                                     .proxyAuthenticator { _, response ->
                                         YouTube.proxyAuth?.let { auth ->
                                             response.request.newBuilder()
@@ -2573,8 +2599,7 @@ class MusicService :
             songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                 val streamUrl = it.first
-                val length = if (dataSpec.length >= 0) minOf(dataSpec.length, CHUNK_LENGTH) else CHUNK_LENGTH
-                return@Factory dataSpec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, length)
+                return@Factory dataSpec.withUri(streamUrl.toUri())
             }
 
             // Need to fetch a new URL - either first time or URL expired
@@ -2649,8 +2674,7 @@ class MusicService :
 
                 songUrlCache[mediaId] =
                     streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
-                val length = if (dataSpec.length >= 0) minOf(dataSpec.length, CHUNK_LENGTH) else CHUNK_LENGTH
-                return@Factory dataSpec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, length)
+                return@Factory dataSpec.withUri(streamUrl.toUri())
             }
         }
     }
@@ -2887,6 +2911,11 @@ class MusicService :
         
         mediaSession.release()
         player.release()
+        
+        if (wifiLock?.isHeld == true) {
+            wifiLock?.release()
+        }
+        wifiLock = null
         
         super.onDestroy()
     }
