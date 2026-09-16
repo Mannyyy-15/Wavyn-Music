@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import iad1tya.echo.music.constants.AppBackgroundStyle
 import iad1tya.echo.music.ui.theme.PlayerColorExtractor
 import kotlin.math.PI
 import kotlin.math.cos
@@ -39,20 +40,21 @@ private val appBackgroundColorsCache = mutableMapOf<String, List<Color>>()
 
 /**
  * Animated dynamic organic liquid water gradient background for Wavyn Music.
- * Dynamically adapts to the currently playing song's thumbnail palette or falls back to
- * a rich, curated cosmic liquid palette with organic multi-node fluid motion across the full display.
+ * Supports Dynamic Glow Spots (localized ambient glowing spots on pure dark background)
+ * and Solid Minimal Dark styles, with dynamic adaptation to active track artwork.
  */
 @Composable
 fun AnimatedMeshBackground(
     thumbnailUrl: String? = null,
+    appBackgroundStyle: AppBackgroundStyle = AppBackgroundStyle.DYNAMIC_GLOW,
     modifier: Modifier = Modifier,
     pureBlack: Boolean = false,
 ) {
-    if (pureBlack) {
+    if (pureBlack || appBackgroundStyle == AppBackgroundStyle.SOLID_DARK) {
         Box(
             modifier = modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .background(Color(0xFF040507))
         )
         return
     }
@@ -63,11 +65,10 @@ fun AnimatedMeshBackground(
     // Curated rich modern cosmic liquid water palette
     val defaultLiquidPalette = remember {
         listOf(
-            Color(0xFF182A4D), // Deep indigo (top-left fluid node)
-            Color(0xFF0C3D52), // Luminous teal-cyan (right-bottom fluid node)
-            Color(0xFF2C1648), // Royal magenta-violet (bottom-left deep accent)
-            Color(0xFF1D355E), // Luminous sapphire (top-right drift)
-            Color(0xFF13223A)  // Ambient midnight center swell
+            Color(0xFF1E335A), // Deep vibrant indigo (top-left fluid node)
+            Color(0xFF0E455E), // Luminous teal-cyan (right-bottom fluid node)
+            Color(0xFF331952), // Royal magenta-violet (bottom-left deep accent)
+            Color(0xFF1A2B4C)  // Ambient midnight accent
         )
     }
 
@@ -94,21 +95,17 @@ fun AnimatedMeshBackground(
     val c0 = extractedColors.getOrElse(0) { defaultLiquidPalette[0] }
     val c1 = extractedColors.getOrElse(1) { defaultLiquidPalette[1] }
     val c2 = extractedColors.getOrElse(2) { defaultLiquidPalette[2] }
-    val c3 = extractedColors.getOrElse(3) { defaultLiquidPalette[3] }
-    val c4 = extractedColors.getOrElse(4) { defaultLiquidPalette[4] }
 
     val animColor0 by animateColorAsState(c0, animationSpec = tween(1600, easing = LinearEasing), label = "appC0")
     val animColor1 by animateColorAsState(c1, animationSpec = tween(1600, easing = LinearEasing), label = "appC1")
     val animColor2 by animateColorAsState(c2, animationSpec = tween(1600, easing = LinearEasing), label = "appC2")
-    val animColor3 by animateColorAsState(c3, animationSpec = tween(1600, easing = LinearEasing), label = "appC3")
-    val animColor4 by animateColorAsState(c4, animationSpec = tween(1600, easing = LinearEasing), label = "appC4")
 
     val infiniteTransition = rememberInfiniteTransition(label = "AppLiquidMeshTransition")
     val time by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(32000, easing = LinearEasing),
+            animation = tween(28000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "AppLiquidTime"
@@ -124,31 +121,21 @@ fun AnimatedMeshBackground(
         return min + (max - min) * ((c + 1f) * 0.5f)
     }
 
-    // Multi-node organic liquid water orb paths across the whole screen:
-    // Node 1: Top-Left Liquid Swell
-    val p1x = wave(-0.06f, 0.38f, 0.00f, 0.7f)
-    val p1y = cosWave(-0.05f, 0.32f, 0.15f, 0.85f)
-    val r1 = wave(0.65f, 1.20f, 0.10f, 0.6f)
+    // Focused, localized organic glowing spots (leaving majority of canvas as pure dark space):
+    // Spot 1: Concentrated Top-Left Ambient Glow Spot
+    val p1x = wave(-0.04f, 0.28f, 0.00f, 0.65f)
+    val p1y = cosWave(-0.04f, 0.22f, 0.15f, 0.75f)
+    val r1 = wave(0.42f, 0.68f, 0.10f, 0.55f)
 
-    // Node 2: Right-Side Mid/Bottom Liquid Swell
-    val p2x = cosWave(0.60f, 1.05f, 0.30f, 0.8f)
-    val p2y = wave(0.46f, 0.82f, 0.45f, 0.75f)
-    val r2 = wave(0.55f, 1.05f, 0.25f, 0.9f)
+    // Spot 2: Concentrated Lower-Right Ambient Glow Spot
+    val p2x = cosWave(0.68f, 1.02f, 0.30f, 0.75f)
+    val p2y = wave(0.50f, 0.82f, 0.45f, 0.65f)
+    val r2 = wave(0.38f, 0.62f, 0.25f, 0.70f)
 
-    // Node 3: Bottom-Left Deep Accent Swell
-    val p3x = wave(-0.08f, 0.35f, 0.60f, 0.9f)
-    val p3y = cosWave(0.68f, 1.02f, 0.70f, 0.65f)
-    val r3 = wave(0.50f, 0.95f, 0.55f, 0.8f)
-
-    // Node 4: Top-Right Soft Atmosphere Drift
-    val p4x = cosWave(0.55f, 0.98f, 0.80f, 0.75f)
-    val p4y = wave(-0.02f, 0.35f, 0.20f, 1.05f)
-    val r4 = wave(0.45f, 0.90f, 0.40f, 0.7f)
-
-    // Node 5: Center Floating Ambient Liquid Eddy
-    val p5x = wave(0.20f, 0.75f, 0.50f, 1.1f)
-    val p5y = cosWave(0.25f, 0.65f, 0.85f, 0.95f)
-    val r5 = wave(0.55f, 1.10f, 0.65f, 0.65f)
+    // Spot 3: Subtle Bottom-Left Ambient Glimmer Spot
+    val p3x = wave(-0.05f, 0.22f, 0.60f, 0.80f)
+    val p3y = cosWave(0.78f, 1.02f, 0.70f, 0.60f)
+    val r3 = wave(0.28f, 0.48f, 0.55f, 0.60f)
 
     Box(
         modifier = modifier
@@ -169,13 +156,13 @@ fun AnimatedMeshBackground(
             .drawWithCache {
                 val w = size.width
                 val h = size.height
-                val baseDark = Color(0xFF07080C)
+                val baseDark = Color(0xFF030406)
 
-                // Liquid water radial nodes
+                // Localized radial glow spots with sharp outer falloff
                 val b1 = Brush.radialGradient(
                     colors = listOf(
-                        animColor0.copy(alpha = 0.55f),
-                        animColor0.copy(alpha = 0.20f),
+                        animColor0.copy(alpha = 0.46f),
+                        animColor0.copy(alpha = 0.12f),
                         Color.Transparent
                     ),
                     center = Offset(w * p1x, h * p1y),
@@ -183,8 +170,8 @@ fun AnimatedMeshBackground(
                 )
                 val b2 = Brush.radialGradient(
                     colors = listOf(
-                        animColor1.copy(alpha = 0.46f),
-                        animColor1.copy(alpha = 0.16f),
+                        animColor1.copy(alpha = 0.38f),
+                        animColor1.copy(alpha = 0.09f),
                         Color.Transparent
                     ),
                     center = Offset(w * p2x, h * p2y),
@@ -192,43 +179,21 @@ fun AnimatedMeshBackground(
                 )
                 val b3 = Brush.radialGradient(
                     colors = listOf(
-                        animColor2.copy(alpha = 0.40f),
-                        animColor2.copy(alpha = 0.12f),
+                        animColor2.copy(alpha = 0.28f),
+                        animColor2.copy(alpha = 0.06f),
                         Color.Transparent
                     ),
                     center = Offset(w * p3x, h * p3y),
                     radius = w * r3
                 )
-                val b4 = Brush.radialGradient(
-                    colors = listOf(
-                        animColor3.copy(alpha = 0.38f),
-                        animColor3.copy(alpha = 0.10f),
-                        Color.Transparent
-                    ),
-                    center = Offset(w * p4x, h * p4y),
-                    radius = w * r4
-                )
-                val b5 = Brush.radialGradient(
-                    colors = listOf(
-                        animColor4.copy(alpha = 0.32f),
-                        animColor4.copy(alpha = 0.08f),
-                        Color.Transparent
-                    ),
-                    center = Offset(w * p5x, h * p5y),
-                    radius = w * r5
-                )
 
                 onDrawBehind {
-                    // Deep dark base canvas
+                    // Pure deep velvet dark base canvas (dominates 75%+ of view)
                     drawRect(baseDark)
-                    // Layered organic liquid water swells
+                    // Discrete localized ambient spots
                     drawRect(b1)
                     drawRect(b2)
                     drawRect(b3)
-                    drawRect(b4)
-                    drawRect(b5)
-                    // Atmospheric subtle darkening for crisp text readability across full-page scrolling
-                    drawRect(Color.Black.copy(alpha = 0.22f))
                 }
             }
     )

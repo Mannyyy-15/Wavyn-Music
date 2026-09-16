@@ -113,6 +113,7 @@ import iad1tya.echo.music.ui.component.LyricsV2
 import iad1tya.echo.music.ui.component.LocalMenuState
 import iad1tya.echo.music.ui.component.PlayerSliderTrack
 import iad1tya.echo.music.ui.component.BigSeekBar
+import iad1tya.echo.music.ui.component.WaveformSeekbar
 import androidx.navigation.NavController
 import me.saket.squiggles.SquigglySlider
 import iad1tya.echo.music.ui.menu.LyricsMenu
@@ -647,15 +648,32 @@ fun LyricsScreen(
                             track = { s -> PlayerSliderTrack(sliderState = s, colors = PlayerSliderColors.slimSliderColors(textBackgroundColor, playerBackground, useDarkTheme)) },
                             modifier = Modifier.fillMaxWidth().padding(horizontal = PlayerHorizontalPadding)
                         )
+                        SliderStyle.WAVEFORM -> WaveformSeekbar(
+                            position = sliderPosition ?: position,
+                            duration = if (duration == C.TIME_UNSET) 0L else duration,
+                            isPlaying = isPlaying,
+                            onSeek = {
+                                player.seekTo(it)
+                                position = it
+                                sliderPosition = null
+                            },
+                            activeColor = textBackgroundColor,
+                            inactiveColor = textBackgroundColor.copy(alpha = 0.28f),
+                            textColor = textBackgroundColor,
+                            showTimeLabels = true,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = PlayerHorizontalPadding)
+                        )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = PlayerHorizontalPadding + 4.dp)
-                    ) {
-                        Text(text = makeTimeString(sliderPosition ?: position), style = MaterialTheme.typography.labelMedium, color = textBackgroundColor, maxLines = 1)
-                        Text(text = if (duration != C.TIME_UNSET) makeTimeString(duration) else "", style = MaterialTheme.typography.labelMedium, color = textBackgroundColor, maxLines = 1)
+                    if (sliderStyle != SliderStyle.WAVEFORM) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = PlayerHorizontalPadding + 4.dp)
+                        ) {
+                            Text(text = makeTimeString(sliderPosition ?: position), style = MaterialTheme.typography.labelMedium, color = textBackgroundColor, maxLines = 1)
+                            Text(text = if (duration != C.TIME_UNSET) makeTimeString(duration) else "", style = MaterialTheme.typography.labelMedium, color = textBackgroundColor, maxLines = 1)
+                        }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(
@@ -887,15 +905,32 @@ fun LyricsScreen(
                             track = { s -> PlayerSliderTrack(sliderState = s, colors = PlayerSliderColors.slimSliderColors(textBackgroundColor, playerBackground, useDarkTheme)) },
                             modifier = Modifier.fillMaxWidth().padding(horizontal = PlayerHorizontalPadding)
                         )
+                        SliderStyle.WAVEFORM -> WaveformSeekbar(
+                            position = sliderPosition ?: position,
+                            duration = if (duration == C.TIME_UNSET) 0L else duration,
+                            isPlaying = isPlaying,
+                            onSeek = {
+                                player.seekTo(it)
+                                position = it
+                                sliderPosition = null
+                            },
+                            activeColor = textBackgroundColor,
+                            inactiveColor = textBackgroundColor.copy(alpha = 0.28f),
+                            textColor = textBackgroundColor,
+                            showTimeLabels = true,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = PlayerHorizontalPadding)
+                        )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = PlayerHorizontalPadding + 4.dp)
-                    ) {
-                        Text(text = makeTimeString(sliderPosition ?: position), style = MaterialTheme.typography.labelMedium, color = textBackgroundColor, maxLines = 1)
-                        Text(text = if (duration != C.TIME_UNSET) makeTimeString(duration) else "", style = MaterialTheme.typography.labelMedium, color = textBackgroundColor, maxLines = 1)
+                    if (sliderStyle != SliderStyle.WAVEFORM) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = PlayerHorizontalPadding + 4.dp)
+                        ) {
+                            Text(text = makeTimeString(sliderPosition ?: position), style = MaterialTheme.typography.labelMedium, color = textBackgroundColor, maxLines = 1)
+                            Text(text = if (duration != C.TIME_UNSET) makeTimeString(duration) else "", style = MaterialTheme.typography.labelMedium, color = textBackgroundColor, maxLines = 1)
+                        }
                     }
                     // ── Repeat / Shuffle ─────────────────────────────────────
                     Spacer(modifier = Modifier.height(12.dp))

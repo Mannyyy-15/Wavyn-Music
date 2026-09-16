@@ -5,11 +5,13 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.*
@@ -50,15 +52,18 @@ fun FluidSlidingNavigationBar(
     pureBlack: Boolean,
     slim: Boolean = false,
     bottomInsetDp: Dp = 0.dp,
+    activeAccentColor: Color? = null,
     onTabSelected: (Screens) -> Unit,
     onTabLongClick: ((Screens) -> Unit)? = null,
 ) {
     val selectedIndex = items.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
 
     val dockBgColor = if (pureBlack) Color(0xFF000000) else Color(0xF5080A10)
-    // Navy blue pill gradient
-    val pillColorStart = Color(0xFF1A3A6B)
-    val pillColorEnd = Color(0xFF2558A6)
+    
+    // Adaptive glassmorphic pill colors harmonized with theme / active track
+    val baseAccent = activeAccentColor ?: MaterialTheme.colorScheme.primary
+    val pillColorStart = baseAccent.copy(alpha = 0.32f)
+    val pillColorEnd = baseAccent.copy(alpha = 0.16f)
     val activeContentColor = Color.White
     val inactiveIconColor = Color.White.copy(alpha = 0.50f)
     val highlightBorder = Color.White.copy(alpha = 0.09f)
@@ -278,6 +283,13 @@ fun FluidSlidingNavigationBar(
                                         Brush.horizontalGradient(
                                             colors = listOf(pillColorStart, pillColorEnd)
                                         )
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        brush = Brush.verticalGradient(
+                                            listOf(Color.White.copy(alpha = 0.22f), Color.White.copy(alpha = 0.08f))
+                                        ),
+                                        shape = RoundedCornerShape(24.dp)
                                     )
                                     .combinedClickable(
                                         interactionSource = remember { MutableInteractionSource() },

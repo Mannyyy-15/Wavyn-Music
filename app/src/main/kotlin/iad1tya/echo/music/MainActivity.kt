@@ -196,6 +196,8 @@ import iad1tya.echo.music.db.entities.SearchHistory
 import iad1tya.echo.music.extensions.toEnum
 import iad1tya.echo.music.models.toMediaMetadata
 import iad1tya.echo.music.listentogether.ListenTogetherManager
+import iad1tya.echo.music.constants.AppBackgroundStyle
+import iad1tya.echo.music.constants.AppBackgroundStyleKey
 import iad1tya.echo.music.playback.DownloadUtil
 import iad1tya.echo.music.playback.MusicService
 import iad1tya.echo.music.playback.MusicService.MusicBinder
@@ -600,8 +602,13 @@ class MainActivity : ComponentActivity() {
                 BoxWithConstraints(
                     modifier = Modifier.fillMaxSize()
                 ) {
+                    val appBackgroundStyle by rememberEnumPreference(
+                        AppBackgroundStyleKey,
+                        defaultValue = AppBackgroundStyle.DYNAMIC_GLOW
+                    )
                     AnimatedMeshBackground(
                         thumbnailUrl = currentMediaMetadata?.thumbnailUrl,
+                        appBackgroundStyle = appBackgroundStyle,
                         pureBlack = pureBlack
                     )
                     val context = androidx.compose.ui.platform.LocalContext.current
@@ -971,7 +978,6 @@ class MainActivity : ComponentActivity() {
                         if (active) {
                             searchBarScrollBehavior.state.resetHeightOffset()
                             topAppBarScrollBehavior.state.resetHeightOffset()
-                            searchBarFocusRequester.requestFocus()
                         }
                     }
 
@@ -1244,8 +1250,8 @@ class MainActivity : ComponentActivity() {
                                 }
                                 AnimatedVisibility(
                                     visible = active || inSearchScreen,
-                                    enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(tween(150)),
-                                    exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(tween(100))
+                                    enter = fadeIn(tween(150)),
+                                    exit = fadeOut(tween(100))
                                 ) {
                                     TopSearch(
                                         query = query,

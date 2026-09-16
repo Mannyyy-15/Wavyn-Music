@@ -171,6 +171,7 @@ import iad1tya.echo.music.ui.component.AnimatedGradientBackground
 import iad1tya.echo.music.ui.component.LocalBottomSheetPageState
 import iad1tya.echo.music.ui.component.LocalMenuState
 import iad1tya.echo.music.ui.component.PlayerSliderTrack
+import iad1tya.echo.music.ui.component.WaveformSeekbar
 import iad1tya.echo.music.ui.component.ResizableIconButton
 import iad1tya.echo.music.ui.component.rememberBottomSheetState
 import iad1tya.echo.music.ui.component.ShareChooserSheet
@@ -1289,6 +1290,33 @@ fun BottomSheetPlayer(
                         colors = PlayerSliderColors.defaultSliderColors(textButtonColor, playerBackground, useDarkTheme),
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
                     )
+
+                    Spacer(Modifier.height(4.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = PlayerHorizontalPadding + 4.dp),
+                    ) {
+                        Text(
+                            text = makeTimeString(sliderPosition ?: position),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = TextBackgroundColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+
+                        Text(
+                            text = if (duration != C.TIME_UNSET) makeTimeString(duration) else "",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = TextBackgroundColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
 
                 SliderStyle.SQUIGGLY -> {
@@ -1313,6 +1341,33 @@ fun BottomSheetPlayer(
                             strokeWidth = 3.dp,
                         ),
                     )
+
+                    Spacer(Modifier.height(4.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = PlayerHorizontalPadding + 4.dp),
+                    ) {
+                        Text(
+                            text = makeTimeString(sliderPosition ?: position),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = TextBackgroundColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+
+                        Text(
+                            text = if (duration != C.TIME_UNSET) makeTimeString(duration) else "",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = TextBackgroundColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
 
                 SliderStyle.SLIM -> {
@@ -1338,34 +1393,52 @@ fun BottomSheetPlayer(
                         },
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding)
                     )
+
+                    Spacer(Modifier.height(4.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = PlayerHorizontalPadding + 4.dp),
+                    ) {
+                        Text(
+                            text = makeTimeString(sliderPosition ?: position),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = TextBackgroundColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+
+                        Text(
+                            text = if (duration != C.TIME_UNSET) makeTimeString(duration) else "",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = TextBackgroundColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
-            }
 
-            Spacer(Modifier.height(4.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = PlayerHorizontalPadding + 4.dp),
-            ) {
-                Text(
-                    text = makeTimeString(sliderPosition ?: position),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextBackgroundColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-
-                Text(
-                    text = if (duration != C.TIME_UNSET) makeTimeString(duration) else "",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextBackgroundColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                SliderStyle.WAVEFORM -> {
+                    WaveformSeekbar(
+                        position = sliderPosition ?: position,
+                        duration = if (duration == C.TIME_UNSET) 0L else duration,
+                        isPlaying = isPlaying,
+                        onSeek = {
+                            playerConnection.player.seekTo(it)
+                            position = it
+                            sliderPosition = null
+                        },
+                        activeColor = textButtonColor,
+                        inactiveColor = textButtonColor.copy(alpha = 0.28f),
+                        textColor = TextBackgroundColor,
+                        showTimeLabels = true,
+                        modifier = Modifier.padding(horizontal = PlayerHorizontalPadding)
+                    )
+                }
             }
 
             Spacer(Modifier.height(12.dp))

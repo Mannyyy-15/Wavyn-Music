@@ -93,6 +93,7 @@ enum class SliderStyle {
     DEFAULT,
     SQUIGGLY,
     SLIM,
+    WAVEFORM,
 }
 
 const val SYSTEM_DEFAULT = "SYSTEM_DEFAULT"
@@ -413,6 +414,13 @@ enum class PlayerBackgroundStyle {
     GLOW_ANIMATED,
     FLUID_MESH,
 }
+
+enum class AppBackgroundStyle {
+    DYNAMIC_GLOW,
+    SOLID_DARK,
+}
+
+val AppBackgroundStyleKey = stringPreferencesKey("appBackgroundStyle")
 
 val CanvasBackgroundFullscreenKey = booleanPreferencesKey("canvasBackgroundFullscreen")
 val TopSize = stringPreferencesKey("topSize")
