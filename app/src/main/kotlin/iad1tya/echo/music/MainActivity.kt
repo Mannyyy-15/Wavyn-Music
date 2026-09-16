@@ -478,6 +478,7 @@ class MainActivity : ComponentActivity() {
             // Keep screen on while playing
             val keepScreenOn by rememberPreference(KeepScreenOn, defaultValue = false)
             val isPlaying by playerConnection?.isPlaying?.collectAsState() ?: remember { mutableStateOf(false) }
+            val currentMediaMetadata by playerConnection?.mediaMetadata?.collectAsState() ?: remember { mutableStateOf(null) }
             DisposableEffect(keepScreenOn, isPlaying) {
                 if (keepScreenOn && isPlaying) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -599,7 +600,10 @@ class MainActivity : ComponentActivity() {
                 BoxWithConstraints(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    AnimatedMeshBackground(pureBlack = pureBlack)
+                    AnimatedMeshBackground(
+                        thumbnailUrl = currentMediaMetadata?.thumbnailUrl,
+                        pureBlack = pureBlack
+                    )
                     val context = androidx.compose.ui.platform.LocalContext.current
                     val focusManager = LocalFocusManager.current
                     val density = LocalDensity.current
