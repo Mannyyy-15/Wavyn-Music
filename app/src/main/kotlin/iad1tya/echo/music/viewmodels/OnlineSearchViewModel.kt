@@ -20,6 +20,9 @@ import iad1tya.echo.music.models.ItemsPage
 import iad1tya.echo.music.utils.dataStore
 import iad1tya.echo.music.utils.get
 import iad1tya.echo.music.utils.reportException
+import com.echo.innertube.YouTube.SearchFilter.Companion.FILTER_SONG
+import com.echo.innertube.YouTube.SearchFilter.Companion.FILTER_FEATURED_PLAYLIST
+import com.echo.innertube.YouTube.SearchFilter.Companion.FILTER_COMMUNITY_PLAYLIST
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +38,15 @@ constructor(
 ) : ViewModel() {
     val query = savedStateHandle.get<String>("query")!!
     var autoplay by mutableStateOf(savedStateHandle.get<Boolean>("autoplay") ?: false)
-    val filter = MutableStateFlow<YouTube.SearchFilter?>(null)
+    private val initialFilterParam = savedStateHandle.get<String>("filter")
+    val filter = MutableStateFlow<YouTube.SearchFilter?>(
+        when (initialFilterParam) {
+            "songs" -> FILTER_SONG
+            "featured_playlists" -> FILTER_FEATURED_PLAYLIST
+            "community_playlists" -> FILTER_COMMUNITY_PLAYLIST
+            else -> null
+        }
+    )
     var summaryPage by mutableStateOf<SearchSummaryPage?>(null)
     val viewStateMap = mutableStateMapOf<String, ItemsPage?>()
 

@@ -39,6 +39,10 @@ fastlane/Preview.html
 fastlane/screenshots/
 fastlane/test_output
 
+# APK outputs & release notes
+*.apk
+release_notes_*.md
+
 # Build logs
 build_log.txt
 build_log_utf8.txt

@@ -249,7 +249,7 @@ fun NavGraphBuilder.navigationBuilder(
         )
     }
     composable(
-        route = "search/{query}?autoplay={autoplay}",
+        route = "search/{query}?autoplay={autoplay}&filter={filter}",
         arguments =
         listOf(
             navArgument("query") {
@@ -258,6 +258,11 @@ fun NavGraphBuilder.navigationBuilder(
             navArgument("autoplay") {
                 type = NavType.BoolType
                 defaultValue = false
+            },
+            navArgument("filter") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
             },
         ),
         enterTransition = {
@@ -412,7 +417,7 @@ fun NavGraphBuilder.navigationBuilder(
         TopPlaylistScreen(navController, scrollBehavior)
     }
     composable(
-        route = "youtube_browse/{browseId}?params={params}",
+        route = "youtube_browse/{browseId}?params={params}&title={title}",
         arguments =
         listOf(
             navArgument("browseId") {
@@ -422,6 +427,12 @@ fun NavGraphBuilder.navigationBuilder(
             navArgument("params") {
                 type = NavType.StringType
                 nullable = true
+                defaultValue = null
+            },
+            navArgument("title") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
             },
         ),
     ) {

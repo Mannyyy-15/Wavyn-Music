@@ -21,7 +21,8 @@ import kotlin.math.sin
 
 /**
  * Animated dynamic mesh gradient background for Wavyn Music.
- * Palette: Dark but clearly visible black, charcoal, graphite grey, slate, and soft luminous white/silver aura.
+ * Navy-blue-to-black aurora gradient concentrated at the top-left,
+ * smoothly fading to deep black around 45% of screen height.
  */
 @Composable
 fun AnimatedMeshBackground(
@@ -42,7 +43,7 @@ fun AnimatedMeshBackground(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(28000, easing = LinearEasing),
+            animation = tween(30000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "AppMeshTime"
@@ -53,31 +54,22 @@ fun AnimatedMeshBackground(
         return min + (max - min) * ((s + 1f) * 0.5f)
     }
 
-    // Harmonic orbital paths for mesh gradient nodes
-    val p1x = wave(0.10f, 0.60f, 0.00f, 0.8f)
-    val p1y = wave(0.08f, 0.45f, 0.12f, 1.1f)
-    val r1 = wave(0.70f, 1.30f, 0.20f, 0.7f)
+    // Orb positions — concentrated top-left, drifting slowly
+    val p1x = wave(-0.08f, 0.28f, 0.00f, 0.5f)
+    val p1y = wave(-0.06f, 0.18f, 0.12f, 0.6f)
+    val r1 = wave(0.60f, 1.10f, 0.20f, 0.5f)
 
-    val p2x = wave(0.55f, 0.95f, 0.25f, 1.0f)
-    val p2y = wave(0.15f, 0.55f, 0.33f, 0.8f)
-    val r2 = wave(0.65f, 1.35f, 0.40f, 0.9f)
+    val p2x = wave(0.10f, 0.50f, 0.25f, 0.7f)
+    val p2y = wave(-0.02f, 0.24f, 0.33f, 0.6f)
+    val r2 = wave(0.55f, 1.05f, 0.40f, 0.7f)
 
-    val p3x = wave(0.15f, 0.65f, 0.45f, 0.9f)
-    val p3y = wave(0.45f, 0.85f, 0.52f, 1.2f)
-    val r3 = wave(0.75f, 1.40f, 0.60f, 0.6f)
+    val p3x = wave(-0.04f, 0.35f, 0.45f, 0.6f)
+    val p3y = wave(0.08f, 0.30f, 0.52f, 0.8f)
+    val r3 = wave(0.50f, 0.90f, 0.60f, 0.5f)
 
-    val p4x = wave(0.50f, 0.90f, 0.65f, 1.1f)
-    val p4y = wave(0.55f, 0.95f, 0.72f, 0.9f)
-    val r4 = wave(0.70f, 1.45f, 0.80f, 1.0f)
-
-    val p5x = wave(0.25f, 0.75f, 0.85f, 0.7f)
-    val p5y = wave(0.30f, 0.70f, 0.92f, 1.0f)
-    val r5 = wave(0.60f, 1.25f, 0.05f, 0.8f)
-
-    // Luminous soft white / silver accent orb floating gracefully
-    val p6x = wave(0.35f, 0.70f, 0.50f, 1.2f)
-    val p6y = wave(0.40f, 0.80f, 0.18f, 0.7f)
-    val r6 = wave(0.55f, 1.20f, 0.35f, 1.1f)
+    val p4x = wave(0.25f, 0.65f, 0.65f, 0.8f)
+    val p4y = wave(-0.06f, 0.16f, 0.72f, 0.6f)
+    val r4 = wave(0.45f, 0.85f, 0.80f, 0.9f)
 
     Box(
         modifier = modifier
@@ -86,8 +78,8 @@ fun AnimatedMeshBackground(
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     Modifier.graphicsLayer {
                         renderEffect = RenderEffect.createBlurEffect(
-                            75f,
-                            75f,
+                            80f,
+                            80f,
                             Shader.TileMode.CLAMP
                         ).asComposeRenderEffect()
                     }
@@ -99,56 +91,91 @@ fun AnimatedMeshBackground(
                 val w = size.width
                 val h = size.height
 
-                // Dark foundation
-                val baseDark = Color(0xFF090A0F)
+                // Base color
+                val baseDark = Color(0xFF050709)
 
-                // Visible dark greys, charcoals, slate, and luminous white highlight
-                val nodeColor1 = Color(0xFF1E2128)
-                val nodeColor2 = Color(0xFF262C38)
-                val nodeColor3 = Color(0xFF333B4B)
-                val nodeColor4 = Color(0xFF16181F)
-                val nodeColor5 = Color(0xFF424C5E)
-                val whiteHighlight = Color(0xFFFFFFFF)
+                // Navy blue palette — deep, rich, not too bright
+                val deepNavy = Color(0xFF1E3A5F)       // Deep navy blue
+                val richBlue = Color(0xFF1A4B8C)        // Rich medium navy
+                val darkSapphire = Color(0xFF0F2B52)    // Darker sapphire foundation
+                val softIndigo = Color(0xFF2C3E6B)      // Muted indigo accent
 
+                // Diagonal beam from top-left
+                val diagonalBeam = Brush.linearGradient(
+                    colors = listOf(
+                        richBlue.copy(alpha = 0.55f),
+                        deepNavy.copy(alpha = 0.45f),
+                        softIndigo.copy(alpha = 0.25f),
+                        Color.Transparent
+                    ),
+                    start = Offset(0f, 0f),
+                    end = Offset(w * 0.80f, h * 0.42f)
+                )
+
+                // Radial orbs for organic glow
                 val b1 = Brush.radialGradient(
-                    colors = listOf(nodeColor1.copy(alpha = 0.90f), nodeColor1.copy(alpha = 0.40f), Color.Transparent),
+                    colors = listOf(
+                        richBlue.copy(alpha = 0.70f),
+                        deepNavy.copy(alpha = 0.30f),
+                        Color.Transparent
+                    ),
                     center = Offset(w * p1x, h * p1y),
                     radius = w * r1
                 )
                 val b2 = Brush.radialGradient(
-                    colors = listOf(nodeColor2.copy(alpha = 0.85f), nodeColor2.copy(alpha = 0.35f), Color.Transparent),
+                    colors = listOf(
+                        darkSapphire.copy(alpha = 0.60f),
+                        darkSapphire.copy(alpha = 0.22f),
+                        Color.Transparent
+                    ),
                     center = Offset(w * p2x, h * p2y),
                     radius = w * r2
                 )
                 val b3 = Brush.radialGradient(
-                    colors = listOf(nodeColor3.copy(alpha = 0.75f), nodeColor3.copy(alpha = 0.30f), Color.Transparent),
+                    colors = listOf(
+                        deepNavy.copy(alpha = 0.50f),
+                        deepNavy.copy(alpha = 0.18f),
+                        Color.Transparent
+                    ),
                     center = Offset(w * p3x, h * p3y),
                     radius = w * r3
                 )
                 val b4 = Brush.radialGradient(
-                    colors = listOf(nodeColor4.copy(alpha = 0.80f), nodeColor4.copy(alpha = 0.30f), Color.Transparent),
+                    colors = listOf(
+                        softIndigo.copy(alpha = 0.40f),
+                        softIndigo.copy(alpha = 0.12f),
+                        Color.Transparent
+                    ),
                     center = Offset(w * p4x, h * p4y),
                     radius = w * r4
                 )
-                val b5 = Brush.radialGradient(
-                    colors = listOf(nodeColor5.copy(alpha = 0.65f), nodeColor5.copy(alpha = 0.20f), Color.Transparent),
-                    center = Offset(w * p5x, h * p5y),
-                    radius = w * r5
-                )
-                val b6 = Brush.radialGradient(
-                    colors = listOf(whiteHighlight.copy(alpha = 0.16f), whiteHighlight.copy(alpha = 0.05f), Color.Transparent),
-                    center = Offset(w * p6x, h * p6y),
-                    radius = w * r6
+
+                // Vertical fade — gradient ends around 45% screen height
+                val fadeScrim = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color.Transparent,
+                        baseDark.copy(alpha = 0.50f),
+                        baseDark.copy(alpha = 0.85f),
+                        baseDark
+                    ),
+                    startY = h * 0.20f,
+                    endY = h * 0.48f
                 )
 
                 onDrawBehind {
+                    // Base pitch black canvas
                     drawRect(baseDark)
+                    // Layered aurora orbs
+                    drawRect(diagonalBeam)
                     drawRect(b1)
                     drawRect(b2)
                     drawRect(b3)
                     drawRect(b4)
-                    drawRect(b5)
-                    drawRect(b6)
+                    // Smooth fade to black
+                    drawRect(fadeScrim)
+                    // Solid black from 48% downward
+                    drawRect(baseDark, topLeft = Offset(0f, h * 0.48f))
                 }
             }
     )

@@ -25,8 +25,9 @@ constructor(
     @ApplicationContext val context: Context,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
-    private val browseId = savedStateHandle.get<String>("browseId")!!
+    private val browseId = savedStateHandle.get<String>("browseId") ?: "FEmusic_moods_and_genres_category"
     private val params = savedStateHandle.get<String>("params")
+    val passedTitle: String? = savedStateHandle.get<String>("title")
 
     val result = MutableStateFlow<BrowseResult?>(null)
 

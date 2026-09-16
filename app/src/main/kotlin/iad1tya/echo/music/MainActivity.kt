@@ -841,7 +841,7 @@ class MainActivity : ComponentActivity() {
                         !isSettingsScreen &&
                         !isListenTogetherScreen
                     val floatingBarsBottomPadding = 0.dp
-                    val navVisibleHeight = if (slimNav) 54.dp else 62.dp
+                    val navVisibleHeight = if (slimNav) 64.dp else 74.dp
 
                     val targetNavBarHeight = navVisibleHeight
 
@@ -1104,66 +1104,26 @@ class MainActivity : ComponentActivity() {
                                     ) + fadeOut(animationSpec = tween(durationMillis = 150, easing = LinearEasing))
                                 ) {
                                     Box {
-                                        // Blurred background - always visible when navbar shows
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(100.dp)
-                                                .zIndex(10f)
-                                                .then(
-                                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                                        Modifier.graphicsLayer {
-                                                            renderEffect = android.graphics.RenderEffect.createBlurEffect(
-                                                                25f,
-                                                                25f,
-                                                                android.graphics.Shader.TileMode.CLAMP
-                                                            ).asComposeRenderEffect()
-                                                        }
-                                                    } else {
-                                                        Modifier
-                                                    }
-                                                )
-                                                .background(
-                                                    brush = Brush.verticalGradient(
-                                                        colors = listOf(
-                                                            if (pureBlack) 
-                                                                Color.Black.copy(alpha = 0.98f)
-                                                            else if (useDarkTheme)
-                                                                MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)
-                                                            else
-                                                                MaterialTheme.colorScheme.surface.copy(alpha = 0.99f),
-                                                            if (pureBlack) 
-                                                                Color.Black.copy(alpha = 0.90f)
-                                                            else if (useDarkTheme)
-                                                                MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
-                                                            else
-                                                                MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-                                                            Color.Transparent
-                                                        )
-                                                    )
-                                                )
-                                        )
-                                        
                                         Row(modifier = Modifier.zIndex(11f)) {
                                             TopAppBar(
                                                 title = {
                                                      if (navBackStackEntry?.destination?.route == Screens.Home.route) {
                                                          Row(
                                                              verticalAlignment = Alignment.CenterVertically,
-                                                             horizontalArrangement = Arrangement.spacedBy(1.5.dp)
+                                                             horizontalArrangement = Arrangement.spacedBy((-14).dp)
                                                          ) {
                                                              Icon(
                                                                  painter = painterResource(R.drawable.wavyn_logo_white),
                                                                  contentDescription = "Wavyn Logo",
                                                                  tint = MaterialTheme.colorScheme.onSurface,
-                                                                 modifier = Modifier.size(32.dp)
+                                                                 modifier = Modifier.size(65.dp)
                                                              )
                                                              Text(
                                                                  text = "avyn",
                                                                  style = MaterialTheme.typography.titleLarge.copy(
                                                                      fontFamily = FontFamily(Font(R.font.zalando_sans_expanded)),
                                                                      fontWeight = FontWeight.Bold,
-                                                                     fontSize = 24.sp,
+                                                                     fontSize = 26.sp,
                                                                      letterSpacing = 0.sp
                                                                  ),
                                                                  color = MaterialTheme.colorScheme.onSurface
@@ -1653,23 +1613,7 @@ class MainActivity : ComponentActivity() {
 
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(
-                                    Brush.verticalGradient(
-                                        if (pureBlack) {
-                                            listOf(
-                                                Color(0xFF0D0F14),
-                                                Color(0xFF07080B),
-                                                Color(0xFF000000)
-                                            )
-                                        } else {
-                                            listOf(
-                                                Color(0xFF131722),
-                                                Color(0xFF0C0E15),
-                                                Color(0xFF05060A)
-                                            )
-                                        }
-                                    )
-                                )
+                                .background(Color.Transparent)
                         ) {
                             Row(Modifier.fillMaxSize()) {
                                 if (showRail) {
