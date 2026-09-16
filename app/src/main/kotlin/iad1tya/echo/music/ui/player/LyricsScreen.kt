@@ -310,16 +310,15 @@ fun LyricsScreen(
             when (playerBackground) {
                 PlayerBackgroundStyle.FLUID_MESH -> {
                     AnimatedContent(
-                        targetState = gradientColors,
-                        transitionSpec = { fadeIn(tween(1200)) togetherWith fadeOut(tween(1200)) },
+                        targetState = mediaMetadata.thumbnailUrl to gradientColors,
+                        transitionSpec = { fadeIn(tween(1000)) togetherWith fadeOut(tween(1000)) },
                         label = "FluidMeshAnimatedContent"
-                    ) { colors ->
-                        if (colors.isNotEmpty()) {
-                            FluidMeshPlayerBackground(
-                                colors = colors,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
+                    ) { (thumbnailUrl, colors) ->
+                        FluidMeshPlayerBackground(
+                            thumbnailUrl = thumbnailUrl,
+                            colors = colors,
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
                 }
                 PlayerBackgroundStyle.BLUR -> {

@@ -575,7 +575,7 @@ fun BottomSheetPlayer(
     )
 
     val bottomSheetBackgroundColor = when (playerBackground) {
-        PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT, PlayerBackgroundStyle.GLOW_ANIMATED ->
+        PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT, PlayerBackgroundStyle.GLOW_ANIMATED, PlayerBackgroundStyle.FLUID_MESH ->
             Color.Black
         else ->
             if (useBlackBackground) Color.Black
@@ -593,7 +593,7 @@ fun BottomSheetPlayer(
                     .fillMaxSize()
                     .background(bottomSheetBackgroundColor)
             ) {
-                if (backgroundAlpha > 0.01f && canvasBackgroundFullscreen && fullscreenCanvasArtwork?.preferredAnimationUrl != null) {
+                if (canvasBackgroundFullscreen && fullscreenCanvasArtwork != null && (fullscreenCanvasArtwork?.animated != null || fullscreenCanvasArtwork?.videoUrl != null)) {
                     val isPlayingCanvas by playerConnection.isPlaying.collectAsState()
                     Box(
                         modifier = Modifier
@@ -624,18 +624,17 @@ fun BottomSheetPlayer(
                     when (playerBackground) {
                         PlayerBackgroundStyle.FLUID_MESH -> {
                             AnimatedContent(
-                                targetState = gradientColors,
-                                transitionSpec = { fadeIn(tween(1200)) togetherWith fadeOut(tween(1200)) },
+                                targetState = mediaMetadata?.thumbnailUrl to gradientColors,
+                                transitionSpec = { fadeIn(tween(1000)) togetherWith fadeOut(tween(1000)) },
                                 label = "FluidMeshAnimatedContent"
-                            ) { colors ->
-                                if (colors.isNotEmpty()) {
-                                    FluidMeshPlayerBackground(
-                                        colors = colors,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .alpha(backgroundAlpha)
-                                    )
-                                }
+                            ) { (thumbnailUrl, colors) ->
+                                FluidMeshPlayerBackground(
+                                    thumbnailUrl = thumbnailUrl,
+                                    colors = colors,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .alpha(backgroundAlpha)
+                                )
                             }
                         }
                         PlayerBackgroundStyle.BLUR -> {

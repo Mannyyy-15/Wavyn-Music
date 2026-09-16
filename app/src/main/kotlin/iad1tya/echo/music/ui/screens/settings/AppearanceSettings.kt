@@ -556,7 +556,7 @@ fun AppearanceSettings(
                             PlayerBackgroundStyle.GRADIENT -> stringResource(R.string.gradient)
                             PlayerBackgroundStyle.BLUR -> "Blur"
                             PlayerBackgroundStyle.GLOW_ANIMATED -> "Glow Animated"
-                            PlayerBackgroundStyle.FLUID_MESH -> "Fluid Mesh (Apple Music)"
+                            PlayerBackgroundStyle.FLUID_MESH -> "Animated Chroma (Full Screen)"
                         }
                     },
                 )
